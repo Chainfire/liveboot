@@ -47,6 +47,11 @@ for many years. It wouldn't surprise me if there's code in here
 somewhere that was already smelly back in 2011. This is not a
 shining example of how to build apps in 2020.
 
+Especially if you're primarily familiar with newer devices, there
+may be some weird constructs with regards to root, but keep in mind
+this app should still be working on Android's as old as 5.0, and
+supporting several different root solutions and versions.
+
 I did not go through the code to clean it up before dumping it here.
 Comments could be outdated or just plain wrong.
 
