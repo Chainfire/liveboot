@@ -1,5 +1,3 @@
-import java.util.function.BooleanSupplier
-
 apply plugin: 'com.android.application'
 
 android {
