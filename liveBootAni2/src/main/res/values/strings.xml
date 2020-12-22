@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LiveBoot</string>
+    <string name="app_details">Copyright &#169; 2011-2020 &#8211; Chainfire\nTwitter: @ChainfireXDA\nG+: http://google.com/+Chainfire\nTap to visit XDA thread</string>
+    <string name="app_website_url">http://forum.xda-developers.com/android/apps-games/liveboot-t2976189</string>
+    
+    <string name="generic_ok">OK</string>
+    <string name="generic_cancel">Cancel</string>
+    <string name="generic_save">Save</string>
+    <string name="generic_yes">Yes</string>
+    <string name="generic_no">No</string>
+    <string name="generic_close">Close</string>
+    <string name="generic_clear">Clear</string>
+    <string name="generic_install">Install</string>
+    <string name="generic_uninstall">Uninstall</string>
+    <string name="generic_all">All</string> 
+    <string name="generic_none">None</string> 
+    
+    <string name="loading">Loading &#8230;</string>
+    <string name="installing">Installing &#8230;</string>
+    <string name="uninstalling">Uninstalling &#8230;</string>
+    <string name="rebooting">Rebooting &#8230;\n\nIf this message remains longer than a minute, please reboot manually!</string>
+    
+    <string name="error_not_rooted">Could not acquire root access. Using SuperSU v2.40 or newer for root access is strongly advised.</string>
+    <string name="error_supersu_old">You are running an older version of SuperSU, please update to SuperSU v2.40 or newer.</string>
+    <string name="error_no_supersu_nor_initd">You have root, but you are not running SuperSU v2.40 or newer, nor are you running a support Magisk version, nor does your firmware have init.d support. One of these is required!</string>
+    <string name="warning_initd">You are not running SuperSU v2.40 or newer, but your firmware supports init.d. The app will try to use init.d to do its thing, but this is not officially supported. If it does not work, upgrade your root to SuperSU v2.40 or newer.</string>
+    <string name="error_install_needed">The boot script on the /system partition needs to be installed or updated. Install now?</string>
+    <string name="error_install_nospace">We need to install into /system, but there is not enough free space (1 MB needed) on the /system partition. This is a problem!</string>
+    <string name="error_uninstall">Uninstall normally, or through a custom recovery? If you don\'t know, select <i>Normal</i>.</string>
+    
+    <string name="settings_category_market">Chainfire</string>
+    <string name="settings_market">All my apps</string>
+    <string name="settings_market_description">View all my apps available on Google Play</string>
+    <string name="follow_pref_title">Follow me on Twitter</string>
+    <string name="follow_pref_desc">Stay up to date with my developments</string>
+    <string name="follow_popup_title">Follow me</string>
+    <string name="follow_popup_desc">Stay up to date with my developments, follow me on Twitter</string>
+    <string name="follow_twitter">Twitter</string>
+    <string name="follow_nothanks">No thanks</string>    
+    
+    <string name="settings_category_logcat">Logcat</string>
+    <string name="settings_logcat_levels_title">Levels</string>
+    <string name="settings_logcat_levels_description">Which logcat levels to display</string>
+    <string name="settings_logcat_buffers_title">Buffers</string>
+    <string name="settings_logcat_buffers_description">Which logcat buffers to display</string>
+    <string name="settings_logcat_format_title">Format</string>
+    <string name="settings_logcat_format_description">Format of the logcat output</string>
+    <string name="settings_logcat_colors_title">Colors</string>
+    <string name="settings_logcat_colors_description">Color code logcat output</string>
+    
+    <string name="settings_category_dmesg">Dmesg</string>
+    <string name="settings_dmesg_title">Enable</string>
+    <string name="settings_dmesg_description">Display kernel message log</string>
+    
+    <string name="settings_category_settings">Options</string>
+    <string name="settings_transparent_title">Transparent</string>
+    <string name="settings_transparent_description">Overlay logcat and dmesg on top of the default boot animation</string>
+    <string name="settings_dark_title">Dark background</string>
+    <string name="settings_dark_description">Use a darker background than the default setting</string>
+    <string name="settings_lines_title">Lines</string>
+    <string name="settings_lines_description">Number of lines to fit on screen</string>
+    <string name="settings_wordwrap_title">Word wrap</string>
+    <string name="settings_wordwrap_description">If a line doesn\'t fit on screen, break it up into multiple lines</string>
+    
+    <string name="settings_category_misc">Miscellaneous</string>
+    <string name="settings_test_title">Test run</string>
+    <string name="settings_test_description">5 second test run. Does not show dmesg output if logcat output is displayed. Filling the screen depends on current orientation. Do not tap screen during test.</string>
+    <string name="settings_uninstall_title">Uninstall</string>
+    <string name="settings_uninstall_description">Removes the boot script from the device. Does not uninstall the app.</string>
+    <string name="settings_reboot_title">Reboot</string>
+    <string name="settings_reboot_description">Reboot device</string>
+    <string name="settings_reboot_confirm">Are you sure you want to reboot?</string>
+    <string name="settings_save_logs_title">Save logs</string>
+    <string name="settings_save_logs_description">Save output to /cache/liveboot.log. Slows down boot, use only when needed.</string>
+    
+    <string name="logcat_level_verbose">Verbose</string>
+    <string name="logcat_level_debug">Debug</string>
+    <string name="logcat_level_info">Info</string>
+    <string name="logcat_level_warning">Warning</string>
+    <string name="logcat_level_error">Error</string>
+    <string name="logcat_level_fatal">Fatal</string>
+    <string name="logcat_level_silent">Silent</string>
+
+    <string name="logcat_buffer_main">Main</string>
+    <string name="logcat_buffer_system">System</string>
+    <string name="logcat_buffer_radio">Radio</string>
+    <string name="logcat_buffer_events">Events</string>
+    <string name="logcat_buffer_crash">Crash</string>
+
+    <string name="logcat_format_brief">Brief</string>
+    <string name="logcat_format_process">Process</string>
+    <string name="logcat_format_tag">Tag</string>
+    <string name="logcat_format_thread">Thread</string>
+    <string name="logcat_format_time">Time</string>
+    <string name="logcat_format_threadtime">Threadtime</string>
+
+    <string name="settings_donate_title">Upgrade to Pro</string>
+    <string name="settings_donate_description">Support development, unlock features</string>
+    
+    <string name="pro_required">The Pro version is required for this feature</string>	
+    
+    <string name="settings_freeload_title">Freeload</string>
+    <string name="settings_freeload_description">Enable Pro features without actually purchasing the Pro version</string>
+        
+</resources>

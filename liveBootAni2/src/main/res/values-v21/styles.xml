@@ -1,0 +1,15 @@
+<resources>
+    <style name="AppTheme.Alert" parent="android:Theme.Material.Light.Dialog.Alert">
+        <item name="android:colorAccent">@color/material_deep_purple_700</item>
+        <item name="android:colorPrimary">@color/material_deep_purple_700</item>
+        <item name="android:colorPrimaryDark">@color/material_deep_purple_900</item>
+    </style>
+    
+    <style name="AppTheme" parent="android:Theme.Material.Light.DarkActionBar">
+        <item name="android:colorAccent">@color/material_deep_purple_700</item>
+        <item name="android:colorPrimary">@color/material_deep_purple_700</item>
+        <item name="android:colorPrimaryDark">@color/material_deep_purple_900</item>
+        <item name="android:navigationBarColor">@color/material_deep_purple_700</item>
+        <item name="android:alertDialogTheme">@style/AppTheme.Alert</item>
+    </style>
+</resources>

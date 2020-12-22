@@ -1,0 +1,82 @@
+2014-12-18 - v1.05
+- Fixed number of lines being interpreted as hexadecimal
+- Fixed various load and display issues on 4.3 and 4.4
+
+2014-12-20 - v1.10
+- Possible fix for only showing for two seconds during boot on some devices
+- Fixed some typos
+- Made logcat buffers configurable (pro)
+- Made logcat format configurable (pro)
+- Made word wrap configurable
+- Added option to darken the background
+- Added option to save logs
+- Added reboot option
+
+- Added capability to use init.d if not using SuperSU, but this is not officially supported. It might make the app work on more firmwares, but it should be noted that init.d behavior differs between firmwares, and unlike su.d provided by SuperSU, no guarantees are made as to the state of the /data partition or SELinux policies when init.d scripts execute. Therefor it is impossible to officially support - it might work, it might not, and this will differ between firmwares.
+
+2014-12-20 - v1.11
+- Added option to disable logcat color coding
+- Another possible fix for premature exit
+
+2014-12-20 - v1.12
+- ProGuard (reduce APK size)
+
+2014-12-21 - v1.13
+- Use alternative shell if default not available (fx HTC One m7, m8)
+- Workaround b/7188322 hack (fx Shield Tablet)
+- Fixed minor script issues
+
+2015-01-03 - v1.14
+- Force remove old boot scripts before placing new one
+- Added another watchdog to prevent the animation from never quitting
+- (C) 2015
+
+- Note: some devices need SuperSU v2.42 or newer to work 
+
+2015-10-30 - v1.20
+- Android 6.0 support
+
+2016-05-19 - v1.30
+- Android N Preview 3 support
+
+2016-10-30 - v1.40
+- Android N 7.1 file-based-encryption support
+
+2016-12-20 - v1.50
+- S7@Nougat: stop animation when Android is up
+- (C) 2017
+
+2017-09-11 - v1.60
+- Add compatibility with Android Oreo
+- Add compatibility with SuperSU in SBIN mode
+- Fix toolbox/toybox detection on 64-bit, could cause animation to keep running
+
+2018-11-16 - v1.70
+- Android 9.0 Pie support
+- Improved 64-bit support
+- Fix files dir not existing automagically
+- Migrated libcfsurface from C hijacks to Java reflection as much as possible (4.2 --> 5.0 minimum support)
+- Magisk support
+- Adaptive icon
+- Updated compile and target API levels
+- (C) 2018
+
+2019-01-06 - v1.80
+- Magisk: support /data/adb paths
+- Magisk: delay startup if /data not available
+- Fix script uninstall not working
+- Use librootjava's Daemon mode
+
+2019-03-13 - v1.81
+- (c) 2019
+- Fix script reinstalling every launch
+- Fix display not working on some Pie ROMs
+- Fix test run not working on some devices
+
+2019-12-31 - v1.83
+- Android 10
+
+2020-12-21 - v1.84
+- Android 11
+- Removed links to Google Plus
+- (c) 2020
