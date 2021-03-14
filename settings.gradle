@@ -1,1 +1,2 @@
+include ':eu.chainfire:libcfsurface'
 include ':liveBootAni2'
