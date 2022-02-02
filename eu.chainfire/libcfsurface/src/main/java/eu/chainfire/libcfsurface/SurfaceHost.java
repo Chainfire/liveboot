@@ -112,13 +112,12 @@ public abstract class SurfaceHost {
             cSurfaceControl = Class.forName("android.view.SurfaceControl");
 
             IBinder mBuiltInDisplay = null;
-            try {
+            if (Build.VERSION.SDK_INT <= 28) {
                 // API 28-
                 Method mGetBuiltInDisplay = cSurfaceControl.getDeclaredMethod("getBuiltInDisplay", int.class);
                 mBuiltInDisplay = (IBinder)mGetBuiltInDisplay.invoke(null,0 /* SurfaceControl.BUILT_IN_DISPLAY_ID_MAIN */);
-            } catch (NoSuchMethodException e) {
             }
-            if (mBuiltInDisplay == null) {
+            else {
                 // API 29+
                 Method mGetPhysicalDisplayIds = cSurfaceControl.getDeclaredMethod("getPhysicalDisplayIds");
                 long[] ids = (long[])mGetPhysicalDisplayIds.invoke(null);
@@ -130,10 +129,11 @@ public abstract class SurfaceHost {
             Object[] displayConfigs = (Object[])mGetDisplayConfigs.invoke(null, mBuiltInDisplay);
 
             Class<?> cPhysicalDisplayInfo;
-            try {
-                // API 30-
+            if (Build.VERSION.SDK_INT <= 29) {
+                // API 29-
                 cPhysicalDisplayInfo = Class.forName("android.view.SurfaceControl$PhysicalDisplayInfo");
-            } catch (ClassNotFoundException e) {
+            }
+            else {
                 // API 30+
                 cPhysicalDisplayInfo = Class.forName("android.view.SurfaceControl$DisplayConfig");
             }
