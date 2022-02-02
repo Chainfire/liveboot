@@ -15,6 +15,7 @@
 
 package eu.chainfire.libcfsurface;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.PixelFormat;
@@ -125,20 +126,37 @@ public abstract class SurfaceHost {
                 mBuiltInDisplay = (IBinder)mGetPhysicalDisplayToken.invoke(null, ids[0]);
             }
 
-            Method mGetDisplayConfigs = cSurfaceControl.getDeclaredMethod("getDisplayConfigs", IBinder.class);
-            Object[] displayConfigs = (Object[])mGetDisplayConfigs.invoke(null, mBuiltInDisplay);
+            Method mGetDisplayConfigs;
+            Object[] displayConfigs;
+            if (Build.VERSION.SDK_INT <= 30) {
+                // API 30-
+                mGetDisplayConfigs = cSurfaceControl.getDeclaredMethod("getDisplayConfigs", IBinder.class);
+                displayConfigs = (Object[]) mGetDisplayConfigs.invoke(null, mBuiltInDisplay);
+            }
+            else {
+                // API 31+
+                Method mGetDynamicDisplayInfo = cSurfaceControl.getDeclaredMethod("getDynamicDisplayInfo", IBinder.class);
+                Object dynamicDisplayInfo = mGetDynamicDisplayInfo.invoke(null, mBuiltInDisplay);
+                Class<?> cDynamicDisplayInfo = Class.forName("android.view.SurfaceControl$DynamicDisplayInfo");
+                @SuppressLint("BlockedPrivateApi") Field fSsupportedDisplayModes = cDynamicDisplayInfo.getDeclaredField("supportedDisplayModes");
+                displayConfigs = (Object[]) fSsupportedDisplayModes.get(dynamicDisplayInfo);
+            }
 
             Class<?> cPhysicalDisplayInfo;
             if (Build.VERSION.SDK_INT <= 29) {
                 // API 29-
                 cPhysicalDisplayInfo = Class.forName("android.view.SurfaceControl$PhysicalDisplayInfo");
             }
-            else {
-                // API 30+
+            else if (Build.VERSION.SDK_INT == 30) {
+                // API 30
                 cPhysicalDisplayInfo = Class.forName("android.view.SurfaceControl$DisplayConfig");
             }
-            Field fWidth = cPhysicalDisplayInfo.getDeclaredField("width");
-            Field fHeight = cPhysicalDisplayInfo.getDeclaredField("height");
+            else {
+                // API 31+
+                cPhysicalDisplayInfo = Class.forName("android.view.SurfaceControl$DisplayMode");
+            }
+            @SuppressLint("BlockedPrivateApi") Field fWidth = cPhysicalDisplayInfo.getDeclaredField("width");
+            @SuppressLint("BlockedPrivateApi") Field fHeight = cPhysicalDisplayInfo.getDeclaredField("height");
             if ((displayConfigs == null) || (displayConfigs.length == 0)) {
                 throw new RuntimeException("CFSurface: could not determine screen dimensions");
             }
