@@ -237,12 +237,25 @@ public abstract class SurfaceHost {
                 throw new RuntimeException("CFSurface: could not create SurfaceControl");
             }
 
+            Class<?> cTransaction = null;
+            Object sGlobalTransaction = null;
+
             // Get SurfaceControl methods we need later
             mSurfaceControlOpenTransaction = cSurfaceControl.getDeclaredMethod("openTransaction");
             mSurfaceControlCloseTransaction = cSurfaceControl.getDeclaredMethod("closeTransaction");
-            mSurfaceControlSetLayer = cSurfaceControl.getDeclaredMethod("setLayer", int.class);
-            mSurfaceControlShow = cSurfaceControl.getDeclaredMethod("show");
-            mSurfaceControlHide = cSurfaceControl.getDeclaredMethod("hide");
+            if (Build.VERSION.SDK_INT <= 30) {
+                mSurfaceControlSetLayer = cSurfaceControl.getDeclaredMethod("setLayer", int.class);
+                mSurfaceControlShow = cSurfaceControl.getDeclaredMethod("show");
+                mSurfaceControlHide = cSurfaceControl.getDeclaredMethod("hide");
+            }
+            else {
+                Method mGetGlobalTransaction = cSurfaceControl.getDeclaredMethod("getGlobalTransaction");
+                cTransaction = Class.forName("android.view.SurfaceControl$Transaction");
+                sGlobalTransaction = cTransaction.newInstance();
+                mSurfaceControlSetLayer = cTransaction.getDeclaredMethod("setLayer", cSurfaceControl, int.class);
+                mSurfaceControlShow = cTransaction.getDeclaredMethod("show", cSurfaceControl);
+                mSurfaceControlHide = cTransaction.getDeclaredMethod("hide", cSurfaceControl);
+            }
 
             try {
                 mSurfaceControlSetSize = cSurfaceControl.getDeclaredMethod("setSize", int.class, int.class);
@@ -258,9 +271,16 @@ public abstract class SurfaceHost {
             mCopyFrom.invoke(mSurface, mSurfaceControl);
 
             // Set top z-index
-            mSurfaceControlOpenTransaction.invoke(null);
-            mSurfaceControlSetLayer.invoke(mSurfaceControl, 0x7FFFFFFF);
-            mSurfaceControlCloseTransaction.invoke(null);
+            if (Build.VERSION.SDK_INT <= 30) {
+                mSurfaceControlOpenTransaction.invoke(null);
+                mSurfaceControlSetLayer.invoke(mSurfaceControl, 0x7FFFFFFF);
+                mSurfaceControlCloseTransaction.invoke(null);
+            }
+            else {
+                mSurfaceControlOpenTransaction.invoke(cTransaction);
+                mSurfaceControlSetLayer.invoke(sGlobalTransaction, mSurfaceControl, 0x7FFFFFFF);
+                mSurfaceControlCloseTransaction.invoke(cTransaction);
+            }
 
             return true;
         } catch (Exception e) {
