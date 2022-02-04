@@ -1,2 +1,5 @@
 include ':eu.chainfire:libcfsurface'
 include ':liveBootAni2'
+include ':eu.chainfire:libsuperuser'
+include ':eu.chainfire:librootjava'
+include ':eu.chainfire:librootjavadaemon'

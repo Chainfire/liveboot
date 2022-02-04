@@ -1,36 +1,21 @@
 apply plugin: 'com.android.library'
 
-buildscript {
-    repositories {
-        maven {
-            url "https://plugins.gradle.org/m2/"
-        }
-    }
-    dependencies {
-        classpath "com.github.dcendents:android-maven-gradle-plugin:2.1"
-    }
-}
-
 android {
-    signingConfigs {
-    }
     compileSdkVersion 31
-    buildToolsVersion "32.0.0"
+    buildToolsVersion '32.0.0'
     defaultConfig {
-        minSdkVersion 21
+        minSdkVersion 21 /* was 14 pre-Binder/AIDL */
         targetSdkVersion 31
+        consumerProguardFiles 'proguard.txt'
     }
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
 }
 
 dependencies {
-    implementation project(path: ':eu.chainfire:librootjava')
-
 }
 
 task sourcesJar(type: Jar) {
@@ -54,17 +39,17 @@ artifacts {
 }
 
 ext {
-    libraryName = 'libCFSurface'
-    libraryDescription = 'Direct SurfaceFlinger access as root'
+    libraryName = 'libRootJava'
+    libraryDescription = 'Run Java (and Kotlin) code as root!'
 
     publishedGroupId = 'eu.chainfire'
-    artifact = 'libcfsurface'
+    artifact = 'librootjava'
 
-    siteUrl = 'https://github.com/Chainfire/libcfsurface'
-    gitUrl = 'https://github.com/Chainfire/libcfsurface.git'
-    issueTrackerUrl = 'https://github.com/Chainfire/libcfsurface/issues'
+    siteUrl = 'https://github.com/Chainfire/librootjava'
+    gitUrl = 'https://github.com/Chainfire/librootjava.git'
+    issueTrackerUrl = 'https://github.com/Chainfire/librootjava/issues'
 
-    libraryVersion = '1.0.0'
+    libraryVersion = '1.3.1'
 
     developerId = 'Chainfire'
     developerName = 'Jorrit Jongma'
@@ -73,7 +58,11 @@ ext {
     licenseName = 'The Apache Software License, Version 2.0'
     licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
     allLicenses = ["Apache-2.0"]
+
+    bintrayRepo = 'maven'
+    bintrayName = artifact
 }
+
 
 // Workaround bintray bug ignoring these from pom and bintray settings
 version = libraryVersion
