@@ -251,7 +251,6 @@ public abstract class SurfaceHost {
                 mSurfaceControlSetLayer = cSurfaceControl.getDeclaredMethod("setLayer", int.class);
                 mSurfaceControlShow = cSurfaceControl.getDeclaredMethod("show");
                 mSurfaceControlHide = cSurfaceControl.getDeclaredMethod("hide");
-                mSurfaceControlSetSize = cSurfaceControl.getDeclaredMethod("setSize", int.class, int.class);
             }
             else {
                 mSurfaceControlGetGlobalTransaction = cSurfaceControl.getDeclaredMethod("getGlobalTransaction");
@@ -259,7 +258,17 @@ public abstract class SurfaceHost {
                 mTransactionSetLayer = cTransaction.getDeclaredMethod("setLayer", cSurfaceControl, int.class);
                 mTransactionShow = cTransaction.getDeclaredMethod("show", cSurfaceControl);
                 mTransactionHide = cTransaction.getDeclaredMethod("hide", cSurfaceControl);
-                mTransactionSetBufferSize = cTransaction.getDeclaredMethod("setBufferSize", cSurfaceControl, int.class, int.class);
+            }
+
+            try {
+                if (Build.VERSION.SDK_INT <= 30) {
+                    mSurfaceControlSetSize = cSurfaceControl.getDeclaredMethod("setSize", int.class, int.class);
+                } else {
+                    mTransactionSetBufferSize = cTransaction.getDeclaredMethod("setBufferSize", cSurfaceControl, int.class, int.class);
+                }
+            } catch (NoSuchMethodException e) {
+                //TODO QP1: this method is messing, check Q source when it becomes available on how to work around
+                Logger.e("QP1: Could not retrieve setSize method");
             }
 
             // Get hidden Surface constructor and copyFrom
@@ -280,6 +289,12 @@ public abstract class SurfaceHost {
                 mSurfaceControlSetLayer.invoke(mSurfaceControl, 0x7FFFFFFF);
             }
             mSurfaceControlCloseTransaction.invoke(null);
+
+            if (Build.VERSION.SDK_INT >= 31) {
+                Class<?> cTypeface = Class.forName("android.graphics.Typeface");
+                @SuppressLint("BlockedPrivateApi") Method mLoadPreinstalledSystemFontMap = cTypeface.getDeclaredMethod("loadPreinstalledSystemFontMap");
+                mLoadPreinstalledSystemFontMap.invoke(null);
+            }
 
             return true;
         } catch (Exception e) {
@@ -332,17 +347,22 @@ public abstract class SurfaceHost {
     private final void updateSurfaceSize() {
         if (mSurface != null) { // we can be called during initSurface
             try {
-                mSurfaceControlOpenTransaction.invoke(null);
-                if (mSurfaceControlGetGlobalTransaction != null) {
-                    // API 31+
-                    synchronized (cSurfaceControl) {
-                        mTransactionSetBufferSize.invoke(mSurfaceControlGetGlobalTransaction.invoke(mSurfaceControl), mWidth, mHeight);
-                    }
+                if (mSurfaceControlSetSize == null) { //TODO QP1
+                    Logger.e("QP1: setSize == null");
                 } else {
-                    // API 30-
-                    mSurfaceControlSetSize.invoke(mSurfaceControl, mWidth, mHeight);
+                    // Does this nested conditional check have to be nested in this way?
+                    mSurfaceControlOpenTransaction.invoke(null);
+                    if (mSurfaceControlGetGlobalTransaction != null) {
+                        // API 31+
+                        synchronized (cSurfaceControl) {
+                            mTransactionSetBufferSize.invoke(mSurfaceControlGetGlobalTransaction.invoke(mSurfaceControl), mWidth, mHeight);
+                        }
+                    } else {
+                        // API 30-
+                        mSurfaceControlSetSize.invoke(mSurfaceControl, mWidth, mHeight);
+                    }
+                    mSurfaceControlCloseTransaction.invoke(null);
                 }
-                mSurfaceControlCloseTransaction.invoke(null);
             } catch (Exception e) {
                 Logger.ex(e);
             }
