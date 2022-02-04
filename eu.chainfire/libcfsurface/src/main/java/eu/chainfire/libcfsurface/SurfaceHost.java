@@ -299,7 +299,8 @@ public abstract class SurfaceHost {
             }
             mSurfaceControlCloseTransaction.invoke(null);
 
-            if (Build.VERSION.SDK_INT >= 31) {
+            if (mSurfaceControlGetGlobalTransaction != null) {
+                // API 31+
                 Class<?> cTypeface = Class.forName("android.graphics.Typeface");
                 @SuppressLint("BlockedPrivateApi") Method mLoadPreinstalledSystemFontMap = cTypeface.getDeclaredMethod("loadPreinstalledSystemFontMap");
                 mLoadPreinstalledSystemFontMap.invoke(null);
