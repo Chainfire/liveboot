@@ -118,12 +118,13 @@ public abstract class SurfaceHost {
             cSurfaceControl = Class.forName("android.view.SurfaceControl");
 
             IBinder mBuiltInDisplay = null;
-            if (Build.VERSION.SDK_INT <= 28) {
+            try {
                 // API 28-
                 Method mGetBuiltInDisplay = cSurfaceControl.getDeclaredMethod("getBuiltInDisplay", int.class);
                 mBuiltInDisplay = (IBinder)mGetBuiltInDisplay.invoke(null,0 /* SurfaceControl.BUILT_IN_DISPLAY_ID_MAIN */);
+            } catch (NoSuchMethodException e) {
             }
-            else {
+            if (mBuiltInDisplay == null) {
                 // API 29+
                 Method mGetPhysicalDisplayIds = cSurfaceControl.getDeclaredMethod("getPhysicalDisplayIds");
                 long[] ids = (long[])mGetPhysicalDisplayIds.invoke(null);
@@ -147,19 +148,27 @@ public abstract class SurfaceHost {
                 displayConfigs = (Object[]) fSsupportedDisplayModes.get(dynamicDisplayInfo);
             }
 
-            Class<?> cPhysicalDisplayInfo;
-            if (Build.VERSION.SDK_INT <= 29) {
-                // API 29-
+            Class<?> cPhysicalDisplayInfo = null;
+            // API 29-
+            try {
                 cPhysicalDisplayInfo = Class.forName("android.view.SurfaceControl$PhysicalDisplayInfo");
+            } catch (ClassNotFoundException e) {
             }
-            else if (Build.VERSION.SDK_INT == 30) {
-                // API 30
-                cPhysicalDisplayInfo = Class.forName("android.view.SurfaceControl$DisplayConfig");
+            // API 30
+            if (cPhysicalDisplayInfo == null) {
+                try {
+                    cPhysicalDisplayInfo = Class.forName("android.view.SurfaceControl$DisplayConfig");
+                } catch (ClassNotFoundException e) {
+                }
             }
-            else {
-                // API 31+
-                cPhysicalDisplayInfo = Class.forName("android.view.SurfaceControl$DisplayMode");
+            // API 31+
+            if (cPhysicalDisplayInfo == null) {
+                try {
+                    cPhysicalDisplayInfo = Class.forName("android.view.SurfaceControl$DisplayMode");
+                } catch (ClassNotFoundException e) {
+                }
             }
+
             @SuppressLint("BlockedPrivateApi") Field fWidth = cPhysicalDisplayInfo.getDeclaredField("width");
             @SuppressLint("BlockedPrivateApi") Field fHeight = cPhysicalDisplayInfo.getDeclaredField("height");
             if ((displayConfigs == null) || (displayConfigs.length == 0)) {
