@@ -65,6 +65,10 @@ public abstract class SurfaceHost {
     private Method mSurfaceControlHide = null;
     private Method mSurfaceControlSetSize = null;
     private Surface mSurface = null;
+    Method mSurfaceControlGetGlobalTransaction = null;
+    Method mTransactionShow;
+    Method mTransactionHide;
+    Method mTransactionSetLayer;
 
     private final boolean checkRotation() {
         // This is fairly weird construct only because we need to handle the case of (for example)
@@ -238,7 +242,6 @@ public abstract class SurfaceHost {
             }
 
             Class<?> cTransaction = null;
-            Object sGlobalTransaction = null;
 
             // Get SurfaceControl methods we need later
             mSurfaceControlOpenTransaction = cSurfaceControl.getDeclaredMethod("openTransaction");
@@ -249,12 +252,11 @@ public abstract class SurfaceHost {
                 mSurfaceControlHide = cSurfaceControl.getDeclaredMethod("hide");
             }
             else {
-                Method mGetGlobalTransaction = cSurfaceControl.getDeclaredMethod("getGlobalTransaction");
+                mSurfaceControlGetGlobalTransaction = cSurfaceControl.getDeclaredMethod("getGlobalTransaction");
                 cTransaction = Class.forName("android.view.SurfaceControl$Transaction");
-                sGlobalTransaction = cTransaction.newInstance();
-                mSurfaceControlSetLayer = cTransaction.getDeclaredMethod("setLayer", cSurfaceControl, int.class);
-                mSurfaceControlShow = cTransaction.getDeclaredMethod("show", cSurfaceControl);
-                mSurfaceControlHide = cTransaction.getDeclaredMethod("hide", cSurfaceControl);
+                mTransactionSetLayer = cTransaction.getDeclaredMethod("setLayer", cSurfaceControl, int.class);
+                mTransactionShow = cTransaction.getDeclaredMethod("show", cSurfaceControl);
+                mTransactionHide = cTransaction.getDeclaredMethod("hide", cSurfaceControl);
             }
 
             try {
@@ -271,19 +273,21 @@ public abstract class SurfaceHost {
             mCopyFrom.invoke(mSurface, mSurfaceControl);
 
             // Set top z-index
-            if (Build.VERSION.SDK_INT <= 30) {
-                mSurfaceControlOpenTransaction.invoke(null);
+            mSurfaceControlOpenTransaction.invoke(null);
+            if (mSurfaceControlGetGlobalTransaction != null) {
+                // API 31+
+                synchronized (cSurfaceControl) {
+                    mTransactionSetLayer.invoke(mSurfaceControlGetGlobalTransaction.invoke(mSurfaceControl), mSurfaceControl, 0x7FFFFFFF);
+                }
+            } else {
+                // API 30-
                 mSurfaceControlSetLayer.invoke(mSurfaceControl, 0x7FFFFFFF);
-                mSurfaceControlCloseTransaction.invoke(null);
             }
-            else {
-                mSurfaceControlOpenTransaction.invoke(cTransaction);
-                mSurfaceControlSetLayer.invoke(sGlobalTransaction, mSurfaceControl, 0x7FFFFFFF);
-                mSurfaceControlCloseTransaction.invoke(cTransaction);
-            }
+            mSurfaceControlCloseTransaction.invoke(null);
 
             return true;
         } catch (Exception e) {
+            e.printStackTrace();
             Logger.ex(e);
             throw new RuntimeException("CFSurface: unexpected exception during SurfaceControl creation");
         }
@@ -304,10 +308,22 @@ public abstract class SurfaceHost {
         if (mShow != mIsVisible) {
             try {
                 mSurfaceControlOpenTransaction.invoke(null);
-                if (mShow) {
-                    mSurfaceControlShow.invoke(mSurfaceControl);
+                if (mSurfaceControlGetGlobalTransaction != null) {
+                    // API 31+
+                    synchronized (cSurfaceControl) {
+                        if (mShow) {
+                            mTransactionShow.invoke(mSurfaceControlGetGlobalTransaction.invoke(mSurfaceControl), mSurfaceControl);
+                        } else {
+                            mTransactionHide.invoke(mSurfaceControlGetGlobalTransaction.invoke(mSurfaceControl), mSurfaceControl);
+                        }
+                    }
                 } else {
-                    mSurfaceControlHide.invoke(mSurfaceControl);
+                    // API 30-
+                    if (mShow) {
+                        mSurfaceControlShow.invoke(mSurfaceControl);
+                    } else {
+                        mSurfaceControlHide.invoke(mSurfaceControl);
+                    }
                 }
                 mSurfaceControlCloseTransaction.invoke(null);
             } catch (Exception e) {
