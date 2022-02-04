@@ -69,6 +69,7 @@ public abstract class SurfaceHost {
     Method mTransactionShow;
     Method mTransactionHide;
     Method mTransactionSetLayer;
+    Method mTransactionSetBufferSize;
 
     private final boolean checkRotation() {
         // This is fairly weird construct only because we need to handle the case of (for example)
@@ -250,6 +251,7 @@ public abstract class SurfaceHost {
                 mSurfaceControlSetLayer = cSurfaceControl.getDeclaredMethod("setLayer", int.class);
                 mSurfaceControlShow = cSurfaceControl.getDeclaredMethod("show");
                 mSurfaceControlHide = cSurfaceControl.getDeclaredMethod("hide");
+                mSurfaceControlSetSize = cSurfaceControl.getDeclaredMethod("setSize", int.class, int.class);
             }
             else {
                 mSurfaceControlGetGlobalTransaction = cSurfaceControl.getDeclaredMethod("getGlobalTransaction");
@@ -257,13 +259,7 @@ public abstract class SurfaceHost {
                 mTransactionSetLayer = cTransaction.getDeclaredMethod("setLayer", cSurfaceControl, int.class);
                 mTransactionShow = cTransaction.getDeclaredMethod("show", cSurfaceControl);
                 mTransactionHide = cTransaction.getDeclaredMethod("hide", cSurfaceControl);
-            }
-
-            try {
-                mSurfaceControlSetSize = cSurfaceControl.getDeclaredMethod("setSize", int.class, int.class);
-            } catch (NoSuchMethodException e) {
-                //TODO QP1: this method is messing, check Q source when it becomes available on how to work around
-                Logger.e("QP1: Could not retrieve setSize method");
+                mTransactionSetBufferSize = cTransaction.getDeclaredMethod("setBufferSize", cSurfaceControl, int.class, int.class);
             }
 
             // Get hidden Surface constructor and copyFrom
@@ -336,13 +332,17 @@ public abstract class SurfaceHost {
     private final void updateSurfaceSize() {
         if (mSurface != null) { // we can be called during initSurface
             try {
-                if (mSurfaceControlSetSize == null) { //TODO QP1
-                    Logger.e("QP1: setSize == null");
+                mSurfaceControlOpenTransaction.invoke(null);
+                if (mSurfaceControlGetGlobalTransaction != null) {
+                    // API 31+
+                    synchronized (cSurfaceControl) {
+                        mTransactionSetBufferSize.invoke(mSurfaceControlGetGlobalTransaction.invoke(mSurfaceControl), mWidth, mHeight);
+                    }
                 } else {
-                    mSurfaceControlOpenTransaction.invoke(null);
+                    // API 30-
                     mSurfaceControlSetSize.invoke(mSurfaceControl, mWidth, mHeight);
-                    mSurfaceControlCloseTransaction.invoke(null);
                 }
+                mSurfaceControlCloseTransaction.invoke(null);
             } catch (Exception e) {
                 Logger.ex(e);
             }
