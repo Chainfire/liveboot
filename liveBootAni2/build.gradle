@@ -1,8 +1,8 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 29
-    buildToolsVersion '29.0.3'
+    compileSdkVersion 31
+    buildToolsVersion '30.0.3'
     defaultConfig {
         applicationId "eu.chainfire.liveboot"
         minSdkVersion 21
@@ -28,11 +28,13 @@ android {
         variant.outputs.all { output ->
             if (variant.buildType.name == 'release') {
                 outputFileName = "LiveBoot" + "-v" + android.defaultConfig.versionName + "-" + (new Date()).format('yyyyMMddHHmmss') + ".apk"
-                variant.assemble.doLast {
-                    copy {
-                        from 'build/outputs/mapping/release'
-                        into 'proguard'
-                        include '**/mapping.txt'
+                variant.getAssembleProvider().configure() {
+                    it.doLast {
+                        copy {
+                            from 'build/outputs/mapping/release'
+                            into 'proguard'
+                            include '**/mapping.txt'
+                        }
                     }
                 }
             }
@@ -42,9 +44,9 @@ android {
 
 dependencies {
     implementation 'androidx.legacy:legacy-support-core-utils:1.0.0'
-    implementation 'androidx.annotation:annotation:1.1.0'
-    implementation 'eu.chainfire:libsuperuser:1.1.0.+'
-    implementation 'eu.chainfire:librootjava:1.3.1'
-    implementation 'eu.chainfire:librootjavadaemon:1.3.1'
-    implementation 'eu.chainfire:libcfsurface:1.0.0'
+    implementation 'androidx.annotation:annotation:1.3.0'
+    implementation 'eu.chainfire:libsuperuser:1.1.1'
+    implementation 'eu.chainfire:librootjava:1.3.3'
+    implementation 'eu.chainfire.librootjava:librootjavadaemon:1.3.3'
+    implementation 'eu.chainfire:libcfsurface:1.0.1'
 }
