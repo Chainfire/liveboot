@@ -362,7 +362,7 @@ public abstract class SurfaceHost {
     private final void updateSurfaceSize() {
         if (mSurface != null) { // we can be called during initSurface
             try {
-                if (mSurfaceControlSetSize == null) { //TODO QP1
+                if (mSurfaceControlSetSize == null && mTransactionSetBufferSize == null) { //TODO QP1
                     Logger.e("QP1: setSize == null");
                 } else {
                     // Does this nested conditional check have to be nested in this way?
