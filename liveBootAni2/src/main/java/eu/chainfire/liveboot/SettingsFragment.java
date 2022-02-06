@@ -239,11 +239,17 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                     if (iap.isServiceConnected()) break;
                     try {
                         Thread.sleep(64);
-                    } catch (Exception e) {                        
+                    } catch (Exception e) {
                     }
                 }
                 if (iap.isServiceConnected()) {
-                    iap.update();
+                    for (int i = 0; i < 10; i++) {
+                        if (iap.isReady()) break;
+                        try {
+                            Thread.sleep(64);
+                        } catch (Exception e) {
+                        }
+                    }
                     InAppPurchases.Order[] orders = iap.getOrders(null, false);
                     if ((orders != null) && (orders.length > 0)) {
                         proReal = true;
@@ -410,7 +416,7 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                         InAppPurchases.InAppPurchase buy = iap.getInAppPurchase(InAppPurchases.PURCHASE_KEY);
                         if (buy != null) {
                             setAutoExit(false);
-                            if (!iap.purchase(buy, getActivity(), MainActivity.REQUEST_PURCHASE)) {
+                            if (!iap.purchase(buy, getActivity(), (MainActivity)getActivity())) {
                                 setAutoExit(true);
                             }
                         }
@@ -792,7 +798,7 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
     public void onDestroy() {
         try {
             iap.close();
-        } catch (Exception e) {            
+        } catch (Exception ignored) {
         }
         super.onDestroy();
     }

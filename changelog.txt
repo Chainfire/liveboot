@@ -81,6 +81,6 @@
 - Removed links to Google Plus
 - (c) 2020
 
-2022-02-06 - v1.85
+2022-02-06 - v1.86
 - Android 12
 - (c) 2022

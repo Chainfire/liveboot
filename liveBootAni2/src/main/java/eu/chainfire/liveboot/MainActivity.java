@@ -27,9 +27,7 @@ import android.view.WindowManager;
 import eu.chainfire.librootjava.Logger;
 import eu.chainfire.liveboot.R;
 
-public class MainActivity extends Activity {
-    public static final int REQUEST_PURCHASE = 1501;
-
+public class MainActivity extends Activity implements InAppPurchases.OnPurchaseListener {
     private Handler handler = new Handler();
     private boolean autoExit = true;
     private int autoExitCounter = 0;
@@ -85,15 +83,8 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        try {
-            if ((requestCode == REQUEST_PURCHASE) && (data != null) && (resultCode == Activity.RESULT_OK)) {
-                finish();
-                startActivity(new Intent(this, MainActivity.class));
-            }
-        } catch (Exception e) {  
-            Logger.ex(e);
-        }
-        super.onActivityResult(requestCode, resultCode, data);
-    }            
+    public void onPurchase(InAppPurchases.Order order, InAppPurchases.InAppPurchase iap) {
+        finish();
+        startActivity(new Intent(this, MainActivity.class));
+    }
 }

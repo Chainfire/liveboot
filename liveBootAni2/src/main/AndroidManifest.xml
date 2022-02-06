@@ -3,7 +3,6 @@
     package="eu.chainfire.liveboot">
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="com.android.vending.BILLING" />
 
     <!-- we need this since supporting Android 8's JobIntentService, as normal IntentService
         no longer works from BOOT_COMPLETED, and it automatically creates wake locks -->
