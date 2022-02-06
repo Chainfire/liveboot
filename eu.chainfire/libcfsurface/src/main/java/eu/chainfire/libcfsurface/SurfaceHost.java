@@ -302,8 +302,13 @@ public abstract class SurfaceHost {
             if (mSurfaceControlGetGlobalTransaction != null) {
                 // API 31+
                 Class<?> cTypeface = Class.forName("android.graphics.Typeface");
-                @SuppressLint("BlockedPrivateApi") Method mLoadPreinstalledSystemFontMap = cTypeface.getDeclaredMethod("loadPreinstalledSystemFontMap");
-                mLoadPreinstalledSystemFontMap.invoke(null);
+                @SuppressLint("BlockedPrivateApi") Method mGetDefault = cTypeface.getDeclaredMethod("getDefault");
+                mGetDefault.setAccessible(true);
+
+                if (mGetDefault.invoke(null) == null) {
+                    @SuppressLint("BlockedPrivateApi") Method mLoadPreinstalledSystemFontMap = cTypeface.getDeclaredMethod("loadPreinstalledSystemFontMap");
+                    mLoadPreinstalledSystemFontMap.invoke(null);
+                }
             }
 
             return true;
