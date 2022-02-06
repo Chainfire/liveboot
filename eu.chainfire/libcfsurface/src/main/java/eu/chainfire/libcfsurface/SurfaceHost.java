@@ -138,8 +138,7 @@ public abstract class SurfaceHost {
                 // API 30-
                 mGetDisplayConfigs = cSurfaceControl.getDeclaredMethod("getDisplayConfigs", IBinder.class);
                 displayConfigs = (Object[]) mGetDisplayConfigs.invoke(null, mBuiltInDisplay);
-            }
-            else {
+            } else {
                 // API 31+
                 Method mGetDynamicDisplayInfo = cSurfaceControl.getDeclaredMethod("getDynamicDisplayInfo", IBinder.class);
                 Object dynamicDisplayInfo = mGetDynamicDisplayInfo.invoke(null, mBuiltInDisplay);
@@ -260,8 +259,7 @@ public abstract class SurfaceHost {
                 mSurfaceControlSetLayer = cSurfaceControl.getDeclaredMethod("setLayer", int.class);
                 mSurfaceControlShow = cSurfaceControl.getDeclaredMethod("show");
                 mSurfaceControlHide = cSurfaceControl.getDeclaredMethod("hide");
-            }
-            else {
+            } else {
                 mSurfaceControlGetGlobalTransaction = cSurfaceControl.getDeclaredMethod("getGlobalTransaction");
                 cTransaction = Class.forName("android.view.SurfaceControl$Transaction");
                 mTransactionSetLayer = cTransaction.getDeclaredMethod("setLayer", cSurfaceControl, int.class);
