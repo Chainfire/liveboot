@@ -207,8 +207,9 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
             boolean sbinsud = false;
             boolean magiskcore = false;
             boolean magiskadb = false;
+            boolean kernelsu = false;
 
-            List<String> ls = Shell.SU.run("ls -ld /system/etc/init.d /su/su.d /sbin/supersu/su.d /data/adb/post-fs-data.d /sbin/.core/img/.core/post-fs-data.d 2> /dev/null");
+            List<String> ls = Shell.SU.run("ls -ld /system/etc/init.d /su/su.d /sbin/supersu/su.d /data/adb/post-fs-data.d /sbin/.core/img/.core/post-fs-data.d /data/adb/ksud 2> /dev/null");
             if (ls != null) {
                 for (String line : ls) {
                     if (line.contains("init.d")) initd = true;
@@ -216,11 +217,12 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                     if (line.contains("su.d")) sbinsud = true;
                     if (line.contains("/adb/post-fs-data.d")) magiskadb = true;
                     if (line.contains("/.core/post-fs-data.d")) magiskcore = true;
+                    if (line.contains("/adb/ksud")) kernelsu = true;
                 }
             }
 
             if (SuperSU && !SuperSU240 && !initd) return 2;
-            if (!SuperSU && !initd && !magiskcore && !magiskadb) return 3;
+            if (!SuperSU && !initd && !magiskcore && !magiskadb && !kernelsu) return 3;
 
             if (magiskadb) {
                 mode = Mode.MAGISK_ADB;
@@ -232,6 +234,8 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                 mode = Mode.SU_SU_D;
             } else if (!SuperSU240 && initd) {
                 mode = Mode.INIT_D;
+            } else if (kernelsu) {
+                mode = Mode.KERNELSU;
             }
 
             if (iap.haveService()) {
