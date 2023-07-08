@@ -39,7 +39,7 @@ import eu.chainfire.libsuperuser.Toolbox;
 import eu.chainfire.liveboot.shell.Runner;
 
 public class Installer {
-    public enum Mode { SU_D, INIT_D, SU_SU_D, SBIN_SU_D, MAGISK_CORE, MAGISK_ADB }
+    public enum Mode { SU_D, INIT_D, SU_SU_D, SBIN_SU_D, MAGISK_CORE, MAGISK_ADB, KERNELSU }
     
     private static final int LAST_SCRIPT_UPDATE = 182;
     private static final String[] SYSTEM_SCRIPTS_SU_D = new String[] { "/system/su.d/0000liveboot" };
@@ -48,6 +48,7 @@ public class Installer {
     private static final String[] SYSTEM_SCRIPTS_SBIN_SU_D = new String[] { "/sbin/supersu/su.d/0000liveboot" };
     private static final String[] SYSTEM_SCRIPTS_MAGISK_CORE = new String[] { "/sbin/.core/img/.core/post-fs-data.d/0000liveboot", "/sbin/.core/img/.core/service.d/0000liveboot" };
     private static final String[] SYSTEM_SCRIPTS_MAGISK_ADB = new String[] { "/data/adb/post-fs-data.d/0000liveboot", "/data/adb/service.d/0000liveboot" };
+    private static final String[] SYSTEM_SCRIPTS_KERNELSU = new String[] { "/data/adb/post-fs-data.d/0000liveboot", "/data/adb/service.d/0000liveboot" };
 
     public static String[] getScript(Mode mode) {
         switch (mode) {
@@ -57,6 +58,7 @@ public class Installer {
             case SBIN_SU_D: return SYSTEM_SCRIPTS_SBIN_SU_D;
             case MAGISK_CORE: return SYSTEM_SCRIPTS_MAGISK_CORE;
             case MAGISK_ADB: return SYSTEM_SCRIPTS_MAGISK_ADB;
+            case KERNELSU: return SYSTEM_SCRIPTS_KERNELSU;
         }
         return null;
     }
@@ -319,6 +321,24 @@ public class Installer {
                 commands.add(String.format(Locale.ENGLISH, Toolbox.command("chown") + " 0.0 %s", script));
                 commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s", script));
             }
+        } else if (mode == Mode.KERNELSU) {
+            commands.add(Toolbox.command("mkdir") + " /data/adb/post-fs-data.d");
+            commands.add(Toolbox.command("chown") + " 0.0 /data/adb/post-fs-data.d");
+            commands.add(Toolbox.command("chmod") + " 0755 /data/adb/post-fs-data.d");
+            for (String script : SYSTEM_SCRIPTS_KERNELSU) {
+                commands.add(String.format(Locale.ENGLISH, "echo '#!%s' > %s", shell, script));
+                commands.add(String.format(Locale.ENGLISH, "echo '{' >> %s", script));
+                commands.add(String.format(Locale.ENGLISH, "echo '    while (true); do' >> %s", script));
+                commands.add(String.format(Locale.ENGLISH, "echo '        if [ -d \"%s\" ]; then' >> %s", filesDir, script));
+                commands.add(String.format(Locale.ENGLISH, "echo '            break;' >> %s", script));
+                commands.add(String.format(Locale.ENGLISH, "echo '        fi' >> %s", script));
+                commands.add(String.format(Locale.ENGLISH, "echo '        sleep 0.1' >> %s", script));
+                commands.add(String.format(Locale.ENGLISH, "echo '    done' >> %s", script));
+                commands.add(String.format(Locale.ENGLISH, "echo '    %s %s/liveboot' >> %s", shell, filesDir, script));
+                commands.add(String.format(Locale.ENGLISH, "echo '} &' >> %s", script));
+                commands.add(String.format(Locale.ENGLISH, Toolbox.command("chown") + " 0.0 %s", script));
+                commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s", script));
+            }
         }
         if ((mode == Mode.SU_D) || (mode == Mode.INIT_D)) {
             commands.add("mount -o ro,remount /system /system");
@@ -362,7 +382,8 @@ public class Installer {
             SYSTEM_SCRIPTS_SU_SU_D,
             SYSTEM_SCRIPTS_SBIN_SU_D,
             SYSTEM_SCRIPTS_MAGISK_CORE,
-            SYSTEM_SCRIPTS_MAGISK_ADB
+            SYSTEM_SCRIPTS_MAGISK_ADB,
+            SYSTEM_SCRIPTS_KERNELSU
         }) {
             for (String script : scripts) {
                 commands.add(String.format(Locale.ENGLISH, Toolbox.command("rm") + " %s", script));
