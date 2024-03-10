@@ -214,8 +214,14 @@ implements
                 } else if (arg.contains("=")) {
                     String key = arg.substring(0, arg.indexOf('='));
                     String value = arg.substring(arg.indexOf('=') + 1);
-                    
-                    if (key.equals("lines")) {
+
+                    if (key.equals("fallbackwidth")) {
+                        fallbackWidth = Integer.valueOf(value, 10);
+                        Logger.dp("OPTS", "fallbackWidth==%d", fallbackWidth);
+                    } else if (key.equals("fallbackheight")) {
+                        fallbackHeight = Integer.valueOf(value, 10);
+                        Logger.dp("OPTS", "fallbackHeight==%d", fallbackHeight);
+                    } else if (key.equals("lines")) {
                         mLines = Integer.valueOf(value, 10);
                         Logger.dp("OPTS", "mLines==%s", mLines);
                     } else if (key.equals("logcatlevels")) {
@@ -243,7 +249,7 @@ implements
             mRunScript = SCRIPT_NAME_SU;
         } else if ((new File(SCRIPT_NAME_SYSTEM)).exists()) {
             mRunScript = SCRIPT_NAME_SYSTEM;
-        } //TODO Magisk
+        } //TODO Magisk, KernelSU
 
         mHandlerThread = new HandlerThread("LiveBoot HandlerThread");
         mHandlerThread.start();

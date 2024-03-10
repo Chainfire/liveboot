@@ -20,6 +20,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.graphics.Point;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.StatFs;
@@ -41,7 +42,7 @@ import eu.chainfire.liveboot.shell.Runner;
 public class Installer {
     public enum Mode { SU_D, INIT_D, SU_SU_D, SBIN_SU_D, MAGISK_CORE, MAGISK_ADB, KERNELSU }
     
-    private static final int LAST_SCRIPT_UPDATE = 182;
+    private static final int LAST_SCRIPT_UPDATE = 188;
     private static final String[] SYSTEM_SCRIPTS_SU_D = new String[] { "/system/su.d/0000liveboot" };
     private static final String[] SYSTEM_SCRIPTS_INIT_D = new String[] { "/system/etc/init.d/0000liveboot" };
     private static final String[] SYSTEM_SCRIPTS_SU_SU_D = new String[] { "/su/su.d/0000liveboot" };
@@ -134,6 +135,32 @@ public class Installer {
         Settings settings = Settings.getInstance(context);
         return installNeededVersion(settings) || installNeededData(context) || installNeededScript(context, mode);
     }
+
+    public static synchronized Point getScreenDimensions() {
+        Point ret = new Point(0, 0);
+        try {
+            List<String> output = Shell.SU.run("dumpsys display | grep -i real");
+            if (output != null) {
+                for (String line : output) {
+                    String[] parts = line.split(",");
+                    for (int i = 0; i < parts.length; i++) {
+                        if (parts[i].contains("real")) {
+                            String[] sub = parts[i].split(" ");
+                            for (int j = 0; j < sub.length; j++) {
+                                if (sub[j].equals("real")) {
+                                    ret.x = Integer.valueOf(sub[j + 1], 10);
+                                    ret.y = Integer.valueOf(sub[j + 3], 10);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch(Exception e) {
+            Logger.ex(e);
+        }
+        return ret;
+    }
         
     public static synchronized List<String> getLaunchScript(Context context, boolean boot) {
         Settings settings = Settings.getInstance(context);
@@ -147,7 +174,7 @@ public class Installer {
         ) {
             haveLogcat = false;
         }
-        
+
         Policies.setPatched(true);
         List<String> params = new ArrayList<String>();
         params.add(context.getPackageCodePath());
@@ -162,6 +189,9 @@ public class Installer {
         params.add("lines=" + settings.LINES.get());
         if (settings.WORD_WRAP.get()) params.add("wordwrap");
         if (settings.SAVE_LOGS.get() && boot) params.add("save");
+        Point dms = getScreenDimensions();
+        params.add("fallbackwidth=" + dms.x);
+        params.add("fallbackheight=" + dms.y);
         String relocate = AppProcess.shouldAppProcessBeRelocated() ? "/dev" : null;
         if (boot) {
             return RootDaemon.getLaunchScript(context, Runner.class, null, relocate, params.toArray(new String[params.size()]), BuildConfig.APPLICATION_ID + ":root");
