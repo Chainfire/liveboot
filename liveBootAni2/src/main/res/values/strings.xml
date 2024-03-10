@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">LiveBoot</string>
-    <string name="app_details">Copyright &#169; 2011-2022 &#8211; Chainfire\nTwitter: @ChainfireXDA\nTap to visit XDA thread</string>
+    <string name="app_details">Copyright &#169; 2011-2024 &#8211; Chainfire\nTwitter: @ChainfireXDA\nTap to visit XDA thread</string>
     <string name="app_website_url">http://forum.xda-developers.com/android/apps-games/liveboot-t2976189</string>
     
     <string name="generic_ok">OK</string>

@@ -1,14 +1,15 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 31
-    buildToolsVersion '30.0.3'
+    namespace 'eu.chainfire.liveboot'
+    compileSdkVersion 34
+    buildToolsVersion '34.0.0'
     defaultConfig {
         applicationId "eu.chainfire.liveboot"
         minSdkVersion 21
-        targetSdkVersion 30
-        versionCode 186
-        versionName '1.86'
+        targetSdkVersion 34
+        versionCode 187
+        versionName '1.87'
     }
     signingConfigs {
         debug {
@@ -23,6 +24,9 @@ android {
         debug {
             signingConfig signingConfigs.debug
         }
+    }
+    buildFeatures {
+        buildConfig = true
     }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
@@ -48,6 +52,6 @@ dependencies {
     implementation 'eu.chainfire:libsuperuser:1.1.1'
     implementation 'eu.chainfire:librootjava:1.3.3'
     implementation 'eu.chainfire.librootjava:librootjavadaemon:1.3.3'
-    implementation 'eu.chainfire:libcfsurface:1.1.0'
+    implementation 'eu.chainfire:libcfsurface:1.1.4'
     implementation 'com.android.billingclient:billing:4.0.0'
 }
