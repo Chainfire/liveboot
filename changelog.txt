@@ -85,7 +85,8 @@
 - Android 12
 - (c) 2022
 
-2022-03-09 -v 1.87
+2022-03-10 -v 1.88
 - Android 14
 - (c) 2024
 - KernelSU support
+- Various fallback methods to determine screen size
