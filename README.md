@@ -2,7 +2,7 @@ This is the sauce for the [LiveBoot](https://play.google.com/store/apps/details?
 
 ## License
 
-Copyright &copy; 2011-2022 Jorrit *Chainfire* Jongma
+Copyright &copy; 2011-2024 Jorrit *Chainfire* Jongma
 
 This code is released under the GPLv3. [LICENSE](./LICENSE), [COPYING](./COPYING).
 
