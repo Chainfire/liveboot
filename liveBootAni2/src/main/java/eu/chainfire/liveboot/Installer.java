@@ -139,7 +139,7 @@ public class Installer {
     public static synchronized Point getScreenDimensions() {
         Point ret = new Point(0, 0);
         try {
-            List<String> output = Shell.SU.run("dumpsys display | grep -i real");
+            List<String> output = Shell.SU.run("dumpsys display | grep -i real | grep -vi overridedisplay");
             if (output != null) {
                 for (String line : output) {
                     String[] parts = line.split(",");
