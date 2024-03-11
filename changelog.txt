@@ -90,3 +90,6 @@
 - (c) 2024
 - KernelSU support
 - Various fallback methods to determine screen size
+
+2024-03-11 - v1.92
+- Adjust fallback resolution detection
