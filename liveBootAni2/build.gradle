@@ -8,8 +8,8 @@ android {
         applicationId "eu.chainfire.liveboot"
         minSdkVersion 21
         targetSdkVersion 34
-        versionCode 188
-        versionName '1.88'
+        versionCode 189
+        versionName '1.89'
     }
     signingConfigs {
         debug {
