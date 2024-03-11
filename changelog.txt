@@ -85,7 +85,7 @@
 - Android 12
 - (c) 2022
 
-2024-03-11 - v1.90
+2024-03-11 - v1.91
 - Android 14
 - (c) 2024
 - KernelSU support
