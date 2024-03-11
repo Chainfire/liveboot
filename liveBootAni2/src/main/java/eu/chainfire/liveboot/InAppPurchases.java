@@ -193,8 +193,9 @@ public class InAppPurchases implements Closeable, PurchasesUpdatedListener {
                     enablePendingPurchases().
                     build();
             billingClient.startConnection(billingClientStateListener);
-            billingServiceFound = true;  //TODO test on non-GooglePlay device?
+            billingServiceFound = true;
         } catch (Exception ignored) {
+            // not installed through Play or Google Play Services not available
         }
         this.billingServiceFound = billingServiceFound;
     }

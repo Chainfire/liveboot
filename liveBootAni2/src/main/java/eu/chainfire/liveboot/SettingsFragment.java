@@ -180,62 +180,74 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                     Thread.sleep(32);
                 } catch (Exception e) {                    
                 }
-            }            
-            if (!suGranted[0]) return 1;
-            
-            Shell.SU.clearCachedResults();
-            String verString = Shell.SU.version(false);
-            String verInt = Shell.SU.version(true);
-            int verIntInt = 0;
-            try {
-                verIntInt = Integer.valueOf(verInt, 10);
-            } catch (Exception e) {      
-                Logger.ex(e);
-            }            
-            Logger.dp("VERSION", "%s %d", verString, verIntInt);
-            
-            boolean root = suGranted[0];
-            if (!root) return 1;
-            
-            boolean SuperSU = true;
-            if ((verString == null) || (!verString.endsWith(":SUPERSU"))) SuperSU = false;
-            boolean SuperSU240 = SuperSU;
-            if (SuperSU && ((verInt == null) || (verIntInt < 240))) SuperSU240 = false;
-            
-            boolean initd = false;
-            boolean susud = false;
-            boolean sbinsud = false;
-            boolean magiskcore = false;
-            boolean magiskadb = false;
-            boolean kernelsu = false;
-
-            List<String> ls = Shell.SU.run("ls -ld /system/etc/init.d /su/su.d /sbin/supersu/su.d /data/adb/post-fs-data.d /sbin/.core/img/.core/post-fs-data.d /data/adb/ksud 2> /dev/null");
-            if (ls != null) {
-                for (String line : ls) {
-                    if (line.contains("init.d")) initd = true;
-                    if (line.contains("su.d")) susud = true;
-                    if (line.contains("su.d")) sbinsud = true;
-                    if (line.contains("/adb/post-fs-data.d")) magiskadb = true;
-                    if (line.contains("/.core/post-fs-data.d")) magiskcore = true;
-                    if (line.contains("/adb/ksud")) kernelsu = true;
-                }
             }
+            boolean haveRoot = suGranted[0];
+            int ret = haveRoot ? 0 : 1;
 
-            if (SuperSU && !SuperSU240 && !initd) return 2;
-            if (!SuperSU && !initd && !magiskcore && !magiskadb && !kernelsu) return 3;
+            if (haveRoot) {
+                Shell.SU.clearCachedResults();
+                String verString = Shell.SU.version(false);
+                String verInt = Shell.SU.version(true);
+                int verIntInt = 0;
+                try {
+                    verIntInt = Integer.valueOf(verInt, 10);
+                } catch (Exception e) {
+                    Logger.ex(e);
+                }
+                Logger.dp("VERSION", "%s %d", verString, verIntInt);
 
-            if (magiskadb) {
-                mode = Mode.MAGISK_ADB;
-            } else if (magiskcore) {
-                mode = Mode.MAGISK_CORE;
-            } else if (sbinsud) {
-                mode = Mode.SBIN_SU_D;
-            } else if (susud) {
-                mode = Mode.SU_SU_D;
-            } else if (!SuperSU240 && initd) {
-                mode = Mode.INIT_D;
-            } else if (kernelsu) {
-                mode = Mode.KERNELSU;
+                haveRoot = suGranted[0];
+                if (!haveRoot) ret = 1;
+
+                if (haveRoot) {
+                    boolean SuperSU = true;
+                    if ((verString == null) || (!verString.endsWith(":SUPERSU"))) SuperSU = false;
+                    boolean SuperSU240 = SuperSU;
+                    if (SuperSU && ((verInt == null) || (verIntInt < 240))) SuperSU240 = false;
+
+                    boolean initd = false;
+                    boolean susud = false;
+                    boolean sbinsud = false;
+                    boolean magiskcore = false;
+                    boolean magiskadb = false;
+                    boolean kernelsu = false;
+
+                    List<String> ls = Shell.SU.run("ls -ld /system/etc/init.d /su/su.d /sbin/supersu/su.d /data/adb/post-fs-data.d /sbin/.core/img/.core/post-fs-data.d /data/adb/ksud 2> /dev/null");
+                    if (ls != null) {
+                        for (String line : ls) {
+                            if (line.contains("init.d")) initd = true;
+                            if (line.contains("su.d")) susud = true;
+                            if (line.contains("su.d")) sbinsud = true;
+                            if (line.contains("/adb/post-fs-data.d")) magiskadb = true;
+                            if (line.contains("/.core/post-fs-data.d")) magiskcore = true;
+                            if (line.contains("/adb/ksud")) kernelsu = true;
+                        }
+                    }
+
+                    if (SuperSU && !SuperSU240 && !initd) {
+                        haveRoot = false;
+                        ret = 2;
+                    } else if (!SuperSU && !initd && !magiskcore && !magiskadb && !kernelsu) {
+                        haveRoot = false;
+                        ret = 3;
+                    }
+
+                    if (haveRoot) {
+                        if (magiskadb) {
+                            mode = Mode.MAGISK_ADB;
+                        } else if (magiskcore) {
+                            mode = Mode.MAGISK_CORE;
+                        } else if (sbinsud) {
+                            mode = Mode.SBIN_SU_D;
+                        } else if (susud) {
+                            mode = Mode.SU_SU_D;
+                        } else if (!SuperSU240 && initd) {
+                            mode = Mode.INIT_D;
+                        } else if (kernelsu) {
+                            mode = Mode.KERNELSU;
+                        }
+                    }
+                }
             }
 
             if (iap.haveService()) {
@@ -291,10 +303,14 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                     pro = true;
                 }
             }
+
+            if (haveRoot) {
+                if (Installer.installNeeded(activity, mode)) {
+                    ret = 4;
+                }
+            }
             
-            if (Installer.installNeeded(activity, mode)) return 4;            
-            
-            return 0;
+            return ret;
         }
         
         private void showPreferences(boolean haveRoot) {
