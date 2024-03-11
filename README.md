@@ -8,7 +8,7 @@ This code is released under the GPLv3. [LICENSE](./LICENSE), [COPYING](./COPYING
 
 ## Spaghetti Sauce Project
 
-This library is part of the [Spaghetti Sauce Project](https://github.com/Chainfire/spaghetti_sauce_project).
+This app is part of the [Spaghetti Sauce Project](https://github.com/Chainfire/spaghetti_sauce_project).
 
 ## About
 
