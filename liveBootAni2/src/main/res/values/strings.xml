@@ -98,8 +98,10 @@
     <string name="settings_donate_title">Upgrade to Pro</string>
     <string name="settings_donate_description">Support development, unlock features</string>
     
-    <string name="pro_required">The Pro version is required for this feature</string>	
-    
+    <string name="pro_required">The Pro version is required for this feature</string>
+    <string name="root_required">Root is required for this feature</string>
+    <string name="error_root_required_2024">Could not acquire root access. Some features require root and will thus not be available.</string>
+
     <string name="settings_freeload_title">Freeload</string>
     <string name="settings_freeload_description">Enable Pro features without actually purchasing the Pro version</string>
         

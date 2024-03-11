@@ -297,12 +297,8 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
             return 0;
         }
         
-        private void showPreferences() {
-            setPreferenceScreen(createPreferenceHierarchy());            
-        }
-        
-        private void closeScreen() {
-            activity.finish();                                    
+        private void showPreferences(boolean haveRoot) {
+            setPreferenceScreen(createPreferenceHierarchy(haveRoot));
         }
         
         @Override
@@ -313,23 +309,23 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                 dialog.dismiss();
             
                 if (result == 0) {
-                    showPreferences();
+                    showPreferences(true);
                 } else if (result == 1) {
-                    message(activity, R.string.error_not_rooted, R.string.generic_ok, new Runnable() {
+                    message(activity, R.string.error_root_required_2024, R.string.generic_ok, new Runnable() {
                         public void run() {
-                            closeScreen();
+                            showPreferences(false);
                         }
                     }, 0, null, 0, null);
                 } else if (result == 2) {
                     message(activity, R.string.error_supersu_old, R.string.generic_ok, new Runnable() {
                         public void run() {
-                            closeScreen();
+                            showPreferences(false);
                         }
                     }, 0, null, 0, null);
                 } else if (result == 3) {
                     message(activity, R.string.error_no_supersu_nor_initd, R.string.generic_ok, new Runnable() {
                         public void run() {
-                            closeScreen();
+                            showPreferences(false);
                         }
                     }, 0, null, 0, null);
                 } else if (result == 4) {
@@ -337,27 +333,27 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                         Installer.installAsync(activity, mode, new Runnable() {
                             @Override
                             public void run() {
-                                showPreferences();
+                                showPreferences(false);
                             }
                         });
                     } else {
                         if (!Installer.systemFree(1 * 1024, 2)) {
                             message(activity, R.string.error_install_nospace, R.string.generic_close, new Runnable() {
                                 public void run() {
-                                    closeScreen();
+                                    showPreferences(false);
                                 }
                             }, 0, null, 0, null);
                         } else {
                             message(activity, R.string.error_install_needed, R.string.generic_cancel, new Runnable() {
                                 public void run() {
-                                    closeScreen();
+                                    showPreferences(false);
                                 }
                             }, 0, null, R.string.generic_install, new Runnable() {
                                 public void run() {
                                     Installer.installAsync(activity, mode, new Runnable() {
                                         @Override
                                         public void run() {
-                                            showPreferences();
+                                            showPreferences(true);
                                         }
                                     });
                                 }
@@ -378,7 +374,14 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
         }
     }
 
-    private PreferenceScreen createPreferenceHierarchy() {
+    private void disableIfNoRoot(Activity activity, Preference preference, boolean haveRoot) {
+        if (!haveRoot) {
+            preference.setEnabled(false);
+            preference.setSummary(String.format("%s\n%s", (String)preference.getSummary(), activity.getString(R.string.root_required)));
+        }
+    }
+
+    private PreferenceScreen createPreferenceHierarchy(boolean haveRoot) {
         final Activity activity = getActivity();
         if (activity == null) return null;
 
@@ -562,7 +565,7 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
 
         PreferenceCategory catMisc = Pref.Category(activity, root, R.string.settings_category_misc);
         
-        Pref.Preference(activity, catMisc, R.string.settings_test_title, R.string.settings_test_description, true, new OnPreferenceClickListener() {          
+        Preference prefTestRun = Pref.Preference(activity, catMisc, R.string.settings_test_title, R.string.settings_test_description, true, new OnPreferenceClickListener() {
             public boolean onPreferenceClick(Preference preference) {
                 (new Thread(new Runnable() {
                     @Override
@@ -574,8 +577,9 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                 return false;
             }
         });
+        disableIfNoRoot(activity, prefTestRun, haveRoot);
         
-        Pref.Preference(activity, catMisc, R.string.settings_uninstall_title, R.string.settings_uninstall_description, true, new OnPreferenceClickListener() {          
+        Preference prefUninstall = Pref.Preference(activity, catMisc, R.string.settings_uninstall_title, R.string.settings_uninstall_description, true, new OnPreferenceClickListener() {
             public boolean onPreferenceClick(Preference preference) {
                 Installer.uninstallAsync(activity, new Runnable() {
                     public void run() {
@@ -585,8 +589,9 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                 return false;
             }
         });  
-        
-        Pref.Preference(activity, catMisc, R.string.settings_reboot_title, R.string.settings_reboot_description, true, new OnPreferenceClickListener() {          
+        disableIfNoRoot(activity, prefUninstall, haveRoot);
+
+        Preference prefReboot = Pref.Preference(activity, catMisc, R.string.settings_reboot_title, R.string.settings_reboot_description, true, new OnPreferenceClickListener() {
             public boolean onPreferenceClick(Preference preference) {
                 message(activity, R.string.settings_reboot_confirm, R.string.generic_cancel, null, 0, null, R.string.settings_reboot_title, new Runnable() {
                     public void run() {
@@ -600,7 +605,8 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                 });
                 return false;
             }
-        });  
+        });
+        disableIfNoRoot(activity, prefReboot, haveRoot);
                 
         if (!proReal) {
             CheckBoxPreference prefFreeload = Pref.Check(activity, catMisc, R.string.settings_freeload_title, R.string.settings_freeload_description, settings.FREELOAD.name, settings.FREELOAD.defaultValue);
