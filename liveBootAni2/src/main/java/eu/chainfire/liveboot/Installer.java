@@ -43,6 +43,9 @@ public class Installer {
     public enum Mode { SU_D, INIT_D, SU_SU_D, SBIN_SU_D, MAGISK_CORE, MAGISK_ADB, KERNELSU }
     
     private static final int LAST_SCRIPT_UPDATE = 188;
+    private static final String BOOT_SCRIPT_MARKER = "# liveboot-boot-script-v2";
+    private static final int BOOT_SCRIPT_FAST_WAIT_ATTEMPTS = 50;
+    private static final int BOOT_SCRIPT_MAX_WAIT_SECONDS = 180;
     private static final String[] SYSTEM_SCRIPTS_SU_D = new String[] { "/system/su.d/0000liveboot" };
     private static final String[] SYSTEM_SCRIPTS_INIT_D = new String[] { "/system/etc/init.d/0000liveboot" };
     private static final String[] SYSTEM_SCRIPTS_SU_SU_D = new String[] { "/su/su.d/0000liveboot" };
@@ -62,6 +65,10 @@ public class Installer {
             case KERNELSU: return SYSTEM_SCRIPTS_KERNELSU;
         }
         return null;
+    }
+
+    private static boolean usesDelayedBootScript(Mode mode) {
+        return (mode == Mode.MAGISK_CORE) || (mode == Mode.MAGISK_ADB) || (mode == Mode.KERNELSU);
     }
 
     public static boolean systemFree(long wanted, int filecount) {
@@ -116,16 +123,20 @@ public class Installer {
         String filesDir = context.getFilesDir().getAbsolutePath();
         boolean haveAll = true;
         for (String file : getScript(mode)) {
-            boolean have = false;
+            boolean haveLaunchCommand = false;
+            boolean haveCurrentVersion = !usesDelayedBootScript(mode);
             List<String> ls = Shell.SU.run(String.format(Locale.ENGLISH, "cat %s", file));
             if (ls != null) {
                 for (String line : ls) {
                     if (line.contains(String.format(Locale.ENGLISH, "%s/liveboot", filesDir))) {
-                        have = true;
+                        haveLaunchCommand = true;
+                    }
+                    if (line.contains(BOOT_SCRIPT_MARKER)) {
+                        haveCurrentVersion = true;
                     }
                 }
             }
-            haveAll = haveAll && have;
+            haveAll = haveAll && haveLaunchCommand && haveCurrentVersion;
         }
         return !haveAll;
     }
@@ -278,6 +289,38 @@ public class Installer {
         Shell.SU.run(commands);
     }
         
+    private static void addDelayedBootScriptInstallCommands(List<String> commands, String shell, String filesDir, String script, String[] scripts) {
+        // Keep the fast path for early boot output, then reduce wakeups and bound the total wait.
+        commands.add(String.format(Locale.ENGLISH, "echo '#!%s' > %s", shell, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '%s' >> %s", BOOT_SCRIPT_MARKER, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '{' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    liveboot=\"%s/liveboot\"' >> %s", filesDir, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    attempts=0' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    while [ ! -x \"$liveboot\" ] && [ \"$attempts\" -lt %d ]; do' >> %s", BOOT_SCRIPT_FAST_WAIT_ATTEMPTS, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        sleep 0.1' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        attempts=$((attempts + 1))' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    done' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    waited=0' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    while [ ! -x \"$liveboot\" ]; do' >> %s", script));
+        // Device-protected data is available by boot completion, so the hook is stale if the launcher is still missing.
+        commands.add(String.format(Locale.ENGLISH, "echo '        if [ \"$(/system/bin/getprop sys.boot_completed)\" = \"1\" ]; then' >> %s", script));
+        for (String staleScript : scripts) {
+            commands.add(String.format(Locale.ENGLISH, "echo '            %s -f %s' >> %s", Toolbox.command("rm"), staleScript, script));
+        }
+        commands.add(String.format(Locale.ENGLISH, "echo '            exit 0' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        fi' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        if [ \"$waited\" -ge %d ]; then' >> %s", BOOT_SCRIPT_MAX_WAIT_SECONDS, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '            exit 0' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        fi' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        sleep 1' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        waited=$((waited + 1))' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    done' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    %s \"$liveboot\"' >> %s", shell, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '} &' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, Toolbox.command("chown") + " 0.0 %s", script));
+        commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s", script));
+    }
+
     public static void install(Context context, Mode mode) {
         Settings settings = Settings.getInstance(context);
         
@@ -337,37 +380,16 @@ public class Installer {
                 commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s", SYSTEM_SCRIPT_SBIN_SU_D));
             }
         } else if ((mode == Mode.MAGISK_CORE) || (mode == Mode.MAGISK_ADB)) {
-            for (String script : (mode == Mode.MAGISK_CORE) ? SYSTEM_SCRIPTS_MAGISK_CORE : SYSTEM_SCRIPTS_MAGISK_ADB) {
-                commands.add(String.format(Locale.ENGLISH, "echo '#!%s' > %s", shell, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '{' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    while (true); do' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        if [ -d \"%s\" ]; then' >> %s", filesDir, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '            break;' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        fi' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        sleep 0.1' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    done' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    %s %s/liveboot' >> %s", shell, filesDir, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '} &' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, Toolbox.command("chown") + " 0.0 %s", script));
-                commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s", script));
+            String[] scripts = (mode == Mode.MAGISK_CORE) ? SYSTEM_SCRIPTS_MAGISK_CORE : SYSTEM_SCRIPTS_MAGISK_ADB;
+            for (String script : scripts) {
+                addDelayedBootScriptInstallCommands(commands, shell, filesDir, script, scripts);
             }
         } else if (mode == Mode.KERNELSU) {
             commands.add(Toolbox.command("mkdir") + " /data/adb/post-fs-data.d");
             commands.add(Toolbox.command("chown") + " 0.0 /data/adb/post-fs-data.d");
             commands.add(Toolbox.command("chmod") + " 0755 /data/adb/post-fs-data.d");
             for (String script : SYSTEM_SCRIPTS_KERNELSU) {
-                commands.add(String.format(Locale.ENGLISH, "echo '#!%s' > %s", shell, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '{' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    while (true); do' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        if [ -d \"%s\" ]; then' >> %s", filesDir, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '            break;' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        fi' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        sleep 0.1' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    done' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    %s %s/liveboot' >> %s", shell, filesDir, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '} &' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, Toolbox.command("chown") + " 0.0 %s", script));
-                commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s", script));
+                addDelayedBootScriptInstallCommands(commands, shell, filesDir, script, SYSTEM_SCRIPTS_KERNELSU);
             }
         }
         if ((mode == Mode.SU_D) || (mode == Mode.INIT_D)) {
