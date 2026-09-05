@@ -31,6 +31,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
+import android.preference.EditTextPreference;
 import android.preference.ListPreference;
 import android.preference.MultiSelectListPreference;
 import android.preference.Preference;
@@ -39,6 +40,7 @@ import android.preference.Preference.OnPreferenceClickListener;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
+import android.text.InputType;
 
 import eu.chainfire.librootjava.Logger;
 import eu.chainfire.libsuperuser.Shell;
@@ -51,6 +53,8 @@ import java.util.Locale;
 import java.util.Set;
 
 public class SettingsFragment extends PreferenceFragment implements OnSharedPreferenceChangeListener {    
+    private static final int MAX_SUICIDE_DELAY_MS = 60000;
+
     private String APP_TITLE = "";
     private SharedPreferences prefs = null;
     private Settings settings = null;
@@ -59,6 +63,7 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
     private MultiSelectListPreference prefLogcatBuffers = null;
     private ListPreference prefLogcatFormat = null;
     private ListPreference prefLines = null;   
+    private EditTextPreference prefSuicideDelay = null;
     
     private InAppPurchases iap = null;
     private volatile boolean pro = false;
@@ -397,6 +402,21 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
         }
     }
 
+    private String normalizeSuicideDelayValue(Object value) {
+        String normalized = value == null ? settings.SUICIDE_DELAY_MS.defaultValue : String.valueOf(value).trim();
+        if (normalized.length() == 0) {
+            normalized = settings.SUICIDE_DELAY_MS.defaultValue;
+        }
+        try {
+            long parsed = Long.parseLong(normalized, 10);
+            if (parsed < 0) parsed = 0;
+            if (parsed > MAX_SUICIDE_DELAY_MS) parsed = MAX_SUICIDE_DELAY_MS;
+            return String.valueOf(parsed);
+        } catch (Exception e) {
+            return settings.SUICIDE_DELAY_MS.defaultValue;
+        }
+    }
+
     private PreferenceScreen createPreferenceHierarchy(boolean haveRoot) {
         final Activity activity = getActivity();
         if (activity == null) return null;
@@ -574,6 +594,21 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                 "160"
         };
         prefLines = Pref.List(activity, catOptions, R.string.settings_lines_title, 0, R.string.settings_lines_title, settings.LINES.name, settings.LINES.defaultValue, lines, lines, true);
+
+        prefSuicideDelay = Pref.Edit(activity, catOptions, R.string.settings_suicide_delay_title, 0, R.string.settings_suicide_delay_title, settings.SUICIDE_DELAY_MS.name, settings.SUICIDE_DELAY_MS.defaultValue, InputType.TYPE_CLASS_NUMBER);
+        prefSuicideDelay.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
+            @Override
+            public boolean onPreferenceChange(Preference preference, Object newValue) {
+                EditTextPreference editPreference = (EditTextPreference) preference;
+                String normalized = normalizeSuicideDelayValue(newValue);
+                editPreference.setText(normalized);
+                if (!normalized.equals(String.valueOf(newValue).trim())) {
+                    settings.SUICIDE_DELAY_MS.set(normalized);
+                    return false;
+                }
+                return true;
+            }
+        });
         
         Pref.Check(activity, catOptions, R.string.settings_wordwrap_title, R.string.settings_wordwrap_description, settings.WORD_WRAP.name, settings.WORD_WRAP.defaultValue);
         
@@ -774,7 +809,21 @@ public class SettingsFragment extends PreferenceFragment implements OnSharedPref
                 ));
             }
         }
-        
+
+        if ((key == null) || key.equals(settings.SUICIDE_DELAY_MS.name)) {
+            String normalized = normalizeSuicideDelayValue(settings.SUICIDE_DELAY_MS.get());
+            if (!normalized.equals(settings.SUICIDE_DELAY_MS.get())) {
+                settings.SUICIDE_DELAY_MS.set(normalized);
+            }
+            if (prefSuicideDelay != null) {
+                prefSuicideDelay.setText(normalized);
+                prefSuicideDelay.setSummary(String.format(Locale.ENGLISH, "%s\n[ %s ms ]",
+                        getString(R.string.settings_suicide_delay_description),
+                        normalized
+                ));
+            }
+        }
+
         if (key != null) {
             if (activity != null) {
                 (new Thread(new Runnable() {                

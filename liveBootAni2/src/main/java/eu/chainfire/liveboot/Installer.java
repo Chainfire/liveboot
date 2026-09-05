@@ -1,19 +1,3 @@
-/* Copyright (C) 2011-2024 Jorrit "Chainfire" Jongma
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package eu.chainfire.liveboot;
 
 import android.annotation.SuppressLint;
@@ -21,14 +5,18 @@ import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.graphics.Point;
+import android.hardware.display.DisplayManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.StatFs;
+import android.view.Display;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import eu.chainfire.librootjava.AppProcess;
 import eu.chainfire.librootjava.Logger;
@@ -41,8 +29,11 @@ import eu.chainfire.liveboot.shell.Runner;
 
 public class Installer {
     public enum Mode { SU_D, INIT_D, SU_SU_D, SBIN_SU_D, MAGISK_CORE, MAGISK_ADB, KERNELSU }
-    
-    private static final int LAST_SCRIPT_UPDATE = 188;
+
+    private static final int LAST_SCRIPT_UPDATE = 195;
+    private static final String BOOT_SCRIPT_MARKER = "# liveboot-boot-script-v2";
+    private static final int BOOT_SCRIPT_FAST_WAIT_ATTEMPTS = 50;
+    private static final int BOOT_SCRIPT_MAX_WAIT_SECONDS = 180;
     private static final String[] SYSTEM_SCRIPTS_SU_D = new String[] { "/system/su.d/0000liveboot" };
     private static final String[] SYSTEM_SCRIPTS_INIT_D = new String[] { "/system/etc/init.d/0000liveboot" };
     private static final String[] SYSTEM_SCRIPTS_SU_SU_D = new String[] { "/su/su.d/0000liveboot" };
@@ -64,17 +55,21 @@ public class Installer {
         return null;
     }
 
+    private static boolean usesDelayedBootScript(Mode mode) {
+        return (mode == Mode.MAGISK_CORE) || (mode == Mode.MAGISK_ADB) || (mode == Mode.KERNELSU);
+    }
+
     public static boolean systemFree(long wanted, int filecount) {
         try {
             StatFs fs = new StatFs("/system");
 
             long blocks = (wanted / fs.getBlockSizeLong()) + (filecount * 3);
-            
+
             return (
                         (fs.getAvailableBlocksLong() >= blocks) ||
                         (fs.getFreeBlocksLong() >= blocks)
             );
-        } catch (Exception e) {         
+        } catch (Exception e) {
         }
         return true;
     }
@@ -85,7 +80,7 @@ public class Installer {
         }
         return context;
     }
-    
+
     private static int getVersion(Context context) {
         try {
             return context.getPackageManager().getPackageInfo(context.getPackageName(), 0).versionCode;
@@ -94,64 +89,87 @@ public class Installer {
             return 0;
         }
     }
-    
+
     public static boolean installNeededVersion(Settings settings) {
         int lastVersion = settings.LAST_UPDATE.get();
         if ((lastVersion == 0) || (lastVersion < LAST_SCRIPT_UPDATE)) {
             return true;
-        }        
+        }
         return false;
     }
-    
+
     public static boolean installNeededData(Context context) {
         context = directBootContext(context);
 
         String filesDir = context.getFilesDir().getAbsolutePath();
         return !(new File(String.format(Locale.ENGLISH, "%s/liveboot", filesDir))).exists();
     }
-    
+
     public static boolean installNeededScript(Context context, Mode mode) {
         context = directBootContext(context);
 
         String filesDir = context.getFilesDir().getAbsolutePath();
         boolean haveAll = true;
         for (String file : getScript(mode)) {
-            boolean have = false;
+            boolean haveLaunchCommand = false;
+            boolean haveCurrentVersion = !usesDelayedBootScript(mode);
             List<String> ls = Shell.SU.run(String.format(Locale.ENGLISH, "cat %s", file));
             if (ls != null) {
                 for (String line : ls) {
                     if (line.contains(String.format(Locale.ENGLISH, "%s/liveboot", filesDir))) {
-                        have = true;
+                        haveLaunchCommand = true;
+                    }
+                    if (line.contains(BOOT_SCRIPT_MARKER)) {
+                        haveCurrentVersion = true;
                     }
                 }
             }
-            haveAll = haveAll && have;
+            haveAll = haveAll && haveLaunchCommand && haveCurrentVersion;
         }
         return !haveAll;
     }
-        
+
     @SuppressLint("SdCardPath")
     public static boolean installNeeded(Context context, Mode mode) {
         Settings settings = Settings.getInstance(context);
         return installNeededVersion(settings) || installNeededData(context) || installNeededScript(context, mode);
     }
 
-    public static synchronized Point getScreenDimensions() {
+    private static long getArea(int width, int height) {
+        return (long) width * (long) height;
+    }
+
+    private static boolean isBetterDimensions(int width, int height, Point currentBest) {
+        if (width <= 0 || height <= 0) return false;
+        long candidateArea = getArea(width, height);
+        long currentArea = getArea(currentBest.x, currentBest.y);
+        return (candidateArea > currentArea) ||
+                ((candidateArea == currentArea) && ((width > currentBest.x) || ((width == currentBest.x) && (height > currentBest.y))));
+    }
+
+    private static Point getScreenDimensionsFromDisplayManager(Context context) {
         Point ret = new Point(0, 0);
         try {
-            List<String> output = Shell.SU.run("dumpsys display | grep -i real | grep -vi overridedisplay");
-            if (output != null) {
-                for (String line : output) {
-                    String[] parts = line.split(",");
-                    for (int i = 0; i < parts.length; i++) {
-                        if (parts[i].contains("real")) {
-                            String[] sub = parts[i].split(" ");
-                            for (int j = 0; j < sub.length; j++) {
-                                if (sub[j].equals("real")) {
-                                    ret.x = Integer.valueOf(sub[j + 1], 10);
-                                    ret.y = Integer.valueOf(sub[j + 3], 10);
-                                }
-                            }
+            DisplayManager displayManager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
+            if (displayManager != null) {
+                Display defaultDisplay = displayManager.getDisplay(Display.DEFAULT_DISPLAY);
+                if (defaultDisplay != null) {
+                    Point size = new Point();
+                    defaultDisplay.getRealSize(size);
+                    if (size.x > 0 && size.y > 0) {
+                        ret.set(size.x, size.y);
+                        return ret;
+                    }
+                }
+
+                Display[] displays = displayManager.getDisplays();
+                if (displays != null) {
+                    for (Display display : displays) {
+                        if (display == null) continue;
+                        Point size = new Point();
+                        display.getRealSize(size);
+                        if (isBetterDimensions(size.x, size.y, ret)) {
+                            ret.set(size.x, size.y);
                         }
                     }
                 }
@@ -161,7 +179,41 @@ public class Installer {
         }
         return ret;
     }
-        
+
+    private static Point getScreenDimensionsFromDumpsys() {
+        Point ret = new Point(0, 0);
+        Pattern realPattern = Pattern.compile("\\breal\\s+(\\d+)\\s*x\\s*(\\d+)\\b", Pattern.CASE_INSENSITIVE);
+        try {
+            List<String> output = Shell.SU.run("dumpsys display | grep -i real | grep -vi overridedisplay");
+            if (output != null) {
+                for (String line : output) {
+                    Matcher matcher = realPattern.matcher(line);
+                    while (matcher.find()) {
+                        int width = Integer.parseInt(matcher.group(1), 10);
+                        int height = Integer.parseInt(matcher.group(2), 10);
+                        if (isBetterDimensions(width, height, ret)) {
+                            ret.set(width, height);
+                        }
+                    }
+                }
+            }
+        } catch(Exception e) {
+            Logger.ex(e);
+        }
+        return ret;
+    }
+
+    public static synchronized Point getScreenDimensions(Context context) {
+        Point ret = new Point(0, 0);
+        if (context != null) {
+            ret = getScreenDimensionsFromDisplayManager(directBootContext(context));
+        }
+        if (ret.x <= 0 || ret.y <= 0) {
+            ret = getScreenDimensionsFromDumpsys();
+        }
+        return ret;
+    }
+
     public static synchronized List<String> getLaunchScript(Context context, boolean boot) {
         Settings settings = Settings.getInstance(context);
 
@@ -187,9 +239,10 @@ public class Installer {
         if (!settings.LOGCAT_COLORS.get()) params.add("logcatnocolors");
         params.add("dmesg=" + ((settings.DMESG.get() && (boot || !haveLogcat)) ? Settings.DMESG_ALL : Settings.DMESG_NONE));
         params.add("lines=" + settings.LINES.get());
+        params.add("suicidedelay=" + settings.SUICIDE_DELAY_MS.get());
         if (settings.WORD_WRAP.get()) params.add("wordwrap");
         if (settings.SAVE_LOGS.get() && boot) params.add("save");
-        Point dms = getScreenDimensions();
+        Point dms = getScreenDimensions(context);
         params.add("fallbackwidth=" + dms.x);
         params.add("fallbackheight=" + dms.y);
         String relocate = AppProcess.shouldAppProcessBeRelocated() ? "/dev" : null;
@@ -211,9 +264,8 @@ public class Installer {
         }
         return false;
     }
-    
+
     private static String getShell() {
-        // works around some boot-time issues on older API levels
         String shell = "/system/bin/sh";
         if (testShell("/su/bin/sush")) {
             shell = "/su/bin/sush";
@@ -222,10 +274,8 @@ public class Installer {
         }
         return shell;
     }
-    
+
     public static void installData(Context context) {
-        // much added weirdness here to work around some issues with running during the boot process,
-        // on various different API levels and root versions.
         context = directBootContext(context);
 
         String filesDir = context.getFilesDir().getAbsolutePath();
@@ -239,9 +289,9 @@ public class Installer {
         commands.add(String.format(Locale.ENGLISH, Toolbox.command("chown") + " 0.0 %s/app_process", filesDir));
         commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s/app_process", filesDir));
         commands.add(String.format(Locale.ENGLISH, Toolbox.command("chcon") + " u:object_r:app_data_file:s0 %s/app_process", filesDir));
-        
+
         String secontext = null;
-        if (Build.VERSION.SDK_INT == 19) { // 4.4 only, not 4.3, not 5.0 - some Note4 madness
+        if (Build.VERSION.SDK_INT == 19) {
             String id = Toolbox.command("id");
             List<String> ret = Shell.run("su --context u:r:recovery:s0", new String[] { id, "sh -c \"" + id + "\"" }, null, false);
             if (ret != null) {
@@ -260,33 +310,58 @@ public class Installer {
 
         String shell = getShell();
         for (String target : new String[] { "liveboot", "test" }) {
-            commands.add(String.format(Locale.ENGLISH, "echo '#!%s' > %s/%s", shell, filesDir, target));   
-//            commands.add(String.format(Locale.ENGLISH, "echo '" + Toolbox.command("cp") + " %s /dev/.app_process_liveboot' >> %s/%s", app_process, filesDir, target));
-//            commands.add(String.format(Locale.ENGLISH, "echo '" + Toolbox.command("chown") + " 0.0 /dev/.app_process_liveboot' >> %s/%s", filesDir, target));
-//            commands.add(String.format(Locale.ENGLISH, "echo '" + Toolbox.command("chmod") + " 0700 /dev/.app_process_liveboot' >> %s/%s", filesDir, target));
+            commands.add(String.format(Locale.ENGLISH, "echo '#!%s' > %s/%s", shell, filesDir, target));
             if (secontext != null) {
-                commands.add(String.format(Locale.ENGLISH, "echo 'echo \"%s\" > /proc/self/attr/current' >> %s/%s", secontext, filesDir, target));                
+                commands.add(String.format(Locale.ENGLISH, "echo 'echo \"%s\" > /proc/self/attr/current' >> %s/%s", secontext, filesDir, target));
             }
             for (String line : getLaunchScript(context, target.equals("liveboot"))) {
                 commands.add(String.format(Locale.ENGLISH, "echo '%s' >> %s/%s", line, filesDir, target));
                 commands.add(String.format(Locale.ENGLISH, "%s 0700 %s/%s", Toolbox.command("chmod"), filesDir, target));
             }
-//            commands.add(String.format(Locale.ENGLISH, "echo '" + Toolbox.command("rm") + " /dev/.app_process_liveboot' >> %s/%s", filesDir, target));
-//            commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0755 %s/%s", filesDir, target));
         }
-        
+
         Shell.SU.run(commands);
     }
-        
+
+    private static void addDelayedBootScriptInstallCommands(List<String> commands, String shell, String filesDir, String script, String[] scripts) {
+        commands.add(String.format(Locale.ENGLISH, "echo '#!%s' > %s", shell, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '%s' >> %s", BOOT_SCRIPT_MARKER, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '{' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    liveboot=\"%s/liveboot\"' >> %s", filesDir, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    attempts=0' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    while [ ! -x \"$liveboot\" ] && [ \"$attempts\" -lt %d ]; do' >> %s", BOOT_SCRIPT_FAST_WAIT_ATTEMPTS, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        sleep 0.1' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        attempts=$((attempts + 1))' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    done' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    waited=0' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    while [ ! -x \"$liveboot\" ]; do' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        if [ \"$(/system/bin/getprop sys.boot_completed)\" = \"1\" ]; then' >> %s", script));
+        for (String staleScript : scripts) {
+            commands.add(String.format(Locale.ENGLISH, "echo '            %s -f %s' >> %s", Toolbox.command("rm"), staleScript, script));
+        }
+        commands.add(String.format(Locale.ENGLISH, "echo '            exit 0' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        fi' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        if [ \"$waited\" -ge %d ]; then' >> %s", BOOT_SCRIPT_MAX_WAIT_SECONDS, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '            exit 0' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        fi' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        sleep 1' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '        waited=$((waited + 1))' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    done' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, "echo '    %s \"$liveboot\"' >> %s", shell, script));
+        commands.add(String.format(Locale.ENGLISH, "echo '} &' >> %s", script));
+        commands.add(String.format(Locale.ENGLISH, Toolbox.command("chown") + " 0.0 %s", script));
+        commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s", script));
+    }
+
     public static void install(Context context, Mode mode) {
         Settings settings = Settings.getInstance(context);
-        
+
         context = directBootContext(context);
 
         String filesDir = context.getFilesDir().getAbsolutePath();
 
         String shell = getShell();
-        
+
         installData(context);
         List<String> commands = new ArrayList<String>();
         if ((mode == Mode.SU_D) || (mode == Mode.INIT_D)) {
@@ -337,37 +412,16 @@ public class Installer {
                 commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s", SYSTEM_SCRIPT_SBIN_SU_D));
             }
         } else if ((mode == Mode.MAGISK_CORE) || (mode == Mode.MAGISK_ADB)) {
-            for (String script : (mode == Mode.MAGISK_CORE) ? SYSTEM_SCRIPTS_MAGISK_CORE : SYSTEM_SCRIPTS_MAGISK_ADB) {
-                commands.add(String.format(Locale.ENGLISH, "echo '#!%s' > %s", shell, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '{' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    while (true); do' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        if [ -d \"%s\" ]; then' >> %s", filesDir, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '            break;' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        fi' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        sleep 0.1' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    done' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    %s %s/liveboot' >> %s", shell, filesDir, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '} &' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, Toolbox.command("chown") + " 0.0 %s", script));
-                commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s", script));
+            String[] scripts = (mode == Mode.MAGISK_CORE) ? SYSTEM_SCRIPTS_MAGISK_CORE : SYSTEM_SCRIPTS_MAGISK_ADB;
+            for (String script : scripts) {
+                addDelayedBootScriptInstallCommands(commands, shell, filesDir, script, scripts);
             }
         } else if (mode == Mode.KERNELSU) {
             commands.add(Toolbox.command("mkdir") + " /data/adb/post-fs-data.d");
             commands.add(Toolbox.command("chown") + " 0.0 /data/adb/post-fs-data.d");
             commands.add(Toolbox.command("chmod") + " 0755 /data/adb/post-fs-data.d");
             for (String script : SYSTEM_SCRIPTS_KERNELSU) {
-                commands.add(String.format(Locale.ENGLISH, "echo '#!%s' > %s", shell, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '{' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    while (true); do' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        if [ -d \"%s\" ]; then' >> %s", filesDir, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '            break;' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        fi' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '        sleep 0.1' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    done' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, "echo '    %s %s/liveboot' >> %s", shell, filesDir, script));
-                commands.add(String.format(Locale.ENGLISH, "echo '} &' >> %s", script));
-                commands.add(String.format(Locale.ENGLISH, Toolbox.command("chown") + " 0.0 %s", script));
-                commands.add(String.format(Locale.ENGLISH, Toolbox.command("chmod") + " 0700 %s", script));
+                addDelayedBootScriptInstallCommands(commands, shell, filesDir, script, SYSTEM_SCRIPTS_KERNELSU);
             }
         }
         if ((mode == Mode.SU_D) || (mode == Mode.INIT_D)) {
@@ -429,7 +483,7 @@ public class Installer {
     public static void installAsync(Activity activity, Mode mode, Runnable onDone) {
         (new Async(activity, Async.ACTION_INSTALL, mode, onDone)).execute();
     }
-    
+
     public static void uninstallAsync(Activity activity, Runnable onDone) {
         (new Async(activity, Async.ACTION_UNINSTALL, null, onDone)).execute();
     }
@@ -437,13 +491,13 @@ public class Installer {
     private static class Async extends AsyncTask<Void, Integer, Void> {
         public static final int ACTION_INSTALL = 1;
         public static final int ACTION_UNINSTALL = 2;
-        
+
         private final Context context;
         private final int action;
         private final Mode mode;
         private final Runnable onDone;
         private ProgressDialog dialog;
-        
+
         public Async(Context context, int action, Mode mode, Runnable onDone) {
             this.context = context;
             this.action = action;
@@ -476,16 +530,16 @@ public class Installer {
                 uninstall(context);
             }
             return null;
-        }        
-        
+        }
+
         @Override
         protected void onPostExecute(Void result) {
             try {
                 dialog.dismiss();
                 if (onDone != null) onDone.run();
-            } catch (Exception e) {   
+            } catch (Exception e) {
                 Logger.ex(e);
             }
         }
-    }    
+    }
 }

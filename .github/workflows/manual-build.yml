@@ -1,0 +1,59 @@
+---
+name: Manual Android Build
+
+"on":
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: Build type
+        required: true
+        default: debug
+        type: choice
+        options:
+          - debug
+          - release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-34" \
+            "build-tools;34.0.0"
+
+      - name: Build app
+        run: |
+          chmod +x ./gradlew
+          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
+            ./gradlew :liveBootAni2:assembleRelease --stacktrace
+          else
+            ./gradlew :liveBootAni2:assembleDebug --stacktrace
+          fi
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: liveboot-${{ github.event.inputs.build_type }}-apk
+          path: |
+            liveBootAni2/build/outputs/apk/**/*.apk
+            liveBootAni2/proguard/**/*.txt
+          if-no-files-found: warn
