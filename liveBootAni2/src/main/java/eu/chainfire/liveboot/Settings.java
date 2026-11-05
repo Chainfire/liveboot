@@ -209,6 +209,7 @@ public class Settings {
     public BooleanSetting      DMESG                           = new BooleanSetting(this, "dmesg", true);
 
     public StringSetting       LINES                           = new StringSetting(this, "lines", "80");
+    public StringSetting       SUICIDE_DELAY_MS                = new StringSetting(this, "suicide_delay_ms", "0");
     public BooleanSetting      WORD_WRAP                       = new BooleanSetting(this, "word_wrap", true);
 
     public BooleanSetting      SAVE_LOGS                       = new BooleanSetting(this, "save_logs", false);
