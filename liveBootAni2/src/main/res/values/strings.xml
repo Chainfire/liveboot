@@ -60,6 +60,8 @@
     <string name="settings_dark_description">Use a darker background than the default setting</string>
     <string name="settings_lines_title">Lines</string>
     <string name="settings_lines_description">Number of lines to fit on screen</string>
+    <string name="settings_suicide_delay_title">Exit delay</string>
+    <string name="settings_suicide_delay_description">Wait this many milliseconds before LiveBoot exits after boot is considered complete. Useful to cover black gaps after the stock boot animation disappears. 0 disables.</string>
     <string name="settings_wordwrap_title">Word wrap</string>
     <string name="settings_wordwrap_description">If a line doesn\'t fit on screen, break it up into multiple lines</string>
     
