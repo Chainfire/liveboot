@@ -89,6 +89,13 @@ available but the launcher missing, the hooks remove themselves.
 Run `python3 -m unittest discover -s tests -v` with a JDK on `PATH`.
 If ShellCheck is installed, the generated boot hooks are checked with it too.
 
+### Building with GitHub Actions
+
+On GitHub, open **Actions**, select **Build Android APK**, and choose **Run
+workflow** to build a branch manually. After the run succeeds, download the
+`LiveBoot-debug-apk` artifact from the run page. The APK uses a debug signing
+key and is intended for testing, not release distribution.
+
 ### Enjoy!
 Or not.
 
