@@ -62,5 +62,40 @@ If it breaks, you get to keep all the pieces.
 Primarily depends on [libRootJava](https://github.com/Chainfire/librootjava)
 and [libCFSurface](https://github.com/Chainfire/libcfsurface).
 
+Once the Dependabot configuration is on the default branch, it checks the
+Gradle project's dependencies weekly and proposes updates as pull requests.
+
+The dual-screen changes from LiveBoot PR 20 also require the separate
+[libCFSurface PR 3](https://github.com/Chainfire/libcfsurface/pull/3) for
+the rendering fix on affected devices. The dependency currently remains
+at libCFSurface 1.1.6, which does not include that fix.
+
+### Exit delay and diagnostics
+
+The **Exit delay** setting keeps LiveBoot visible for up to 60,000 ms after
+the normal exit condition; its default of 0 adds no delay. Diagnostic state
+is written to `/cache/liveboot.diag.log`, or `/data/local/tmp/liveboot.diag.log`
+if the first location is unavailable. The diagnostic file is restricted to
+its root owner and does not include logcat or dmesg line contents; exception
+details and boot state may still be recorded.
+
+Magisk and KernelSU hooks poll quickly for five seconds and then once per
+second for up to 180 seconds. When boot completes with the data partition
+available but the launcher missing, the hooks remove themselves.
+
+### Tests
+
+Run `python3 -m unittest discover -s tests -v` with a JDK on `PATH`.
+If ShellCheck is installed, the generated boot hooks are checked with it too.
+
 ### Enjoy!
 Or not.
+
+## Credits
+
+- [LIghtJUNction](https://github.com/LIghtJUNction) — the bounded boot-hook
+  wait and stale-hook cleanup in [LiveBoot PR 25](https://github.com/Chainfire/liveboot/pull/25).
+- [AntiOblivionis](https://github.com/AntiOblivionis) — submitted
+  [LiveBoot PR 20](https://github.com/Chainfire/liveboot/pull/20).
+- [GoldenglowSusie (澄闪)](https://github.com/GoldenglowSusie) — authored
+  the display detection, diagnostics, and exit-delay changes in PR 20.
