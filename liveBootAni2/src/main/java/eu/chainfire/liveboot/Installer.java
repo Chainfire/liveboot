@@ -26,6 +26,7 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.StatFs;
 import android.view.Display;
+import android.view.Surface;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -163,6 +164,16 @@ public class Installer {
                 ((candidateArea == currentArea) && ((width > currentBest.x) || ((width == currentBest.x) && (height > currentBest.y))));
     }
 
+    private static Point getNaturalDisplaySize(Display display) {
+        Point size = new Point();
+        display.getRealSize(size);
+        int rotation = display.getRotation();
+        if (rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270) {
+            size.set(size.y, size.x);
+        }
+        return size;
+    }
+
     private static Point getScreenDimensionsFromDisplayManager(Context context) {
         Point ret = new Point(0, 0);
         try {
@@ -170,8 +181,7 @@ public class Installer {
             if (displayManager != null) {
                 Display defaultDisplay = displayManager.getDisplay(Display.DEFAULT_DISPLAY);
                 if (defaultDisplay != null) {
-                    Point size = new Point();
-                    defaultDisplay.getRealSize(size);
+                    Point size = getNaturalDisplaySize(defaultDisplay);
                     if (size.x > 0 && size.y > 0) {
                         ret.set(size.x, size.y);
                         return ret;
@@ -182,8 +192,7 @@ public class Installer {
                 if (displays != null) {
                     for (Display display : displays) {
                         if (display == null) continue;
-                        Point size = new Point();
-                        display.getRealSize(size);
+                        Point size = getNaturalDisplaySize(display);
                         if (isBetterDimensions(size.x, size.y, ret)) {
                             ret.set(size.x, size.y);
                         }

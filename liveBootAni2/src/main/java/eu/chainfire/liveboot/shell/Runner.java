@@ -413,8 +413,10 @@ implements
         RootDaemon.daemonize(BuildConfig.APPLICATION_ID, 0, false, null);
 
         Toolbox.init();
-        openDiagLog();
-        redirectStandardStreams();
+        if (!Arrays.asList(args).contains("test")) {
+            openDiagLog();
+            redirectStandardStreams();
+        }
         diag("INIT", "pid=%d args=%s", android.os.Process.myPid(), Arrays.toString(args));
         diag("INIT", "properties={%s}", getInterestingProperties());
         diag("INIT", "diag log=%s stderr_redirect=%s", String.valueOf(mDiagLogName), String.valueOf(mDiagPrintStream != null));

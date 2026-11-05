@@ -51,7 +51,39 @@ public class GeneratedHarness {
     static class Point {
         int x;
         int y;
+        Point() { this(0, 0); }
         Point(int x, int y) { this.x = x; this.y = y; }
+        void set(int x, int y) { this.x = x; this.y = y; }
+    }
+    static class Surface {
+        static final int ROTATION_0 = 0, ROTATION_90 = 1, ROTATION_180 = 2, ROTATION_270 = 3;
+    }
+    static class Display {
+        static final int DEFAULT_DISPLAY = 0;
+        final int width, height, rotation;
+        Display(int width, int height, int rotation) {
+            this.width = width;
+            this.height = height;
+            this.rotation = rotation;
+        }
+        void getRealSize(Point point) { point.set(width, height); }
+        int getRotation() { return rotation; }
+    }
+    static class DisplayManager {
+        final Display defaultDisplay;
+        final Display[] displays;
+        DisplayManager(Display defaultDisplay, Display... displays) {
+            this.defaultDisplay = defaultDisplay;
+            this.displays = displays;
+        }
+        Display getDisplay(int id) { return defaultDisplay; }
+        Display[] getDisplays() { return displays; }
+    }
+    static class Context {
+        static final String DISPLAY_SERVICE = "display";
+        final DisplayManager manager;
+        Context(DisplayManager manager) { this.manager = manager; }
+        Object getSystemService(String service) { return manager; }
     }
     static class Settings {
         static class StringSetting { String defaultValue = "0"; }
@@ -73,6 +105,8 @@ public class GeneratedHarness {
     BOOT_SCRIPT
     AREA
     DIMENSIONS
+    NATURAL_SIZE
+    DISPLAY_MANAGER
     PROPERTY
     BOOT_SIGNAL
     PID
@@ -106,6 +140,21 @@ public class GeneratedHarness {
         check(!isBetterDimensions(0, 2400, new Point(720, 1280)), "invalid display");
         check(!isBetterDimensions(720, 1280, new Point(1080, 2400)), "smaller display");
         check(isBetterDimensions(3000, 2000, new Point(2000, 3000)), "equal-area tie");
+        for (int rotation = 0; rotation < 4; rotation++) {
+            boolean rotated = rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270;
+            Display display = new Display(rotated ? 2400 : 1080, rotated ? 1080 : 2400, rotation);
+            Point size = getScreenDimensionsFromDisplayManager(new Context(new DisplayManager(display)));
+            check(size.x == 1080 && size.y == 2400, "default display rotation " + rotation);
+        }
+        Display landscape = new Display(1600, 2560, Surface.ROTATION_90);
+        Point size = getScreenDimensionsFromDisplayManager(new Context(new DisplayManager(
+                new Display(0, 0, Surface.ROTATION_0),
+                new Display(720, 1280, Surface.ROTATION_0), landscape)));
+        check(size.x == 2560 && size.y == 1600, "fallback display natural landscape");
+        size = getScreenDimensionsFromDisplayManager(new Context(new DisplayManager(
+                null, new Display(2000, 3000, Surface.ROTATION_0),
+                new Display(2000, 3000, Surface.ROTATION_270))));
+        check(size.x == 3000 && size.y == 2000, "fallback display natural size before tie break");
         check("0".equals(test.normalizeSuicideDelayValue("")), "empty delay");
         check("0".equals(test.normalizeSuicideDelayValue("-1")), "negative delay");
         check("2500".equals(test.normalizeSuicideDelayValue(" 2500 ")), "valid delay");
@@ -121,17 +170,71 @@ public class GeneratedHarness {
         check(test.logCount == 3, "periodic and changed boot state logging");
     }
 }
+
+class DiagHarness {
+    static class Toolbox { static void init() {} }
+    static class android { static class os { static class Process { static int myPid() { return 1; } } } }
+    final java.nio.file.Path log;
+    String mDiagLogName = null;
+    Object mDiagPrintStream = null;
+    boolean opened = false;
+    boolean redirected = false;
+
+    DiagHarness(java.nio.file.Path log) { this.log = log; }
+    void openDiagLog() {
+        try {
+            java.nio.file.Files.write(log, new byte[0]);
+        } catch (java.io.IOException e) {
+            throw new RuntimeException(e);
+        }
+        opened = true;
+        mDiagLogName = log.toString();
+        mDiagPrintStream = new Object();
+    }
+    void redirectStandardStreams() { redirected = true; }
+    void diag(String tag, String format, Object... args) {}
+    String getInterestingProperties() { return ""; }
+
+    void run(String[] args) {
+    DIAG_INIT
+    }
+
+    public static void main(String[] args) throws Exception {
+        java.nio.file.Path path = java.nio.file.Paths.get(args[0]);
+        byte[] previousBoot = "previous boot diagnostics".getBytes("UTF-8");
+        for (String[] testArgs : new String[][] {{"test"}, {"fallbackwidth=1080", "test", "transparent"}}) {
+            java.nio.file.Files.write(path, previousBoot);
+            DiagHarness test = new DiagHarness(path);
+            test.run(testArgs);
+            GeneratedHarness.check(!test.opened && !test.redirected, "test must not open diagnostics");
+            GeneratedHarness.check(Arrays.equals(previousBoot, java.nio.file.Files.readAllBytes(path)),
+                    "test must preserve previous boot diagnostics");
+        }
+        for (String[] bootArgs : new String[][] {{"boot"}, {"boot", "test=0"}}) {
+            java.nio.file.Files.write(path, previousBoot);
+            DiagHarness boot = new DiagHarness(path);
+            boot.run(bootArgs);
+            GeneratedHarness.check(boot.opened && boot.redirected, "boot diagnostics still enabled");
+            GeneratedHarness.check(java.nio.file.Files.size(path) == 0, "boot starts a fresh diagnostic log");
+        }
+    }
+}
 """
+        on_init = java_method(runner, "protected void onInit")
+        diagnostic_init = on_init[on_init.index("        Toolbox.init();"):on_init.index("        // parse options")]
         replacements = {
             "CONSTANTS": constants,
             "BOOT_SCRIPT": java_method(installer, "private static void addDelayedBootScriptInstallCommands"),
             "AREA": java_method(installer, "private static long getArea"),
             "DIMENSIONS": java_method(installer, "private static boolean isBetterDimensions"),
+            "NATURAL_SIZE": java_method(installer, "private static Point getNaturalDisplaySize"),
+            "DISPLAY_MANAGER": java_method(installer, "private static Point getScreenDimensionsFromDisplayManager"),
             "PROPERTY": java_method(runner, "private boolean isPropertyOne"),
             "BOOT_SIGNAL": java_method(runner, "private String getBootCompletionSignal"),
             "PID": java_method(runner, "private Integer getPidFromPsLine"),
             "BOOT_LOG": java_method(runner, "private void maybeLogBootState"),
             "DELAY": java_method(settings_fragment, "private String normalizeSuicideDelayValue"),
+            "DIAG_INIT": diagnostic_init,
         }
         for marker, code in replacements.items():
             harness = harness.replace("    " + marker + "\n", code + "\n")
@@ -201,6 +304,9 @@ public class GeneratedHarness {
 
     def test_java_boot_and_display_logic(self):
         subprocess.run(["java", "-cp", self.build_dir.name, "GeneratedHarness", "checks"], check=True)
+
+    def test_test_mode_preserves_boot_diagnostics(self):
+        subprocess.run(["java", "-cp", self.build_dir.name, "DiagHarness", str(self.root / "diagnostics")], check=True)
 
     def test_present_launcher_runs_immediately(self):
         self.files.mkdir(parents=True)

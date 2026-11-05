@@ -77,7 +77,8 @@ the normal exit condition; its default of 0 adds no delay. Diagnostic state
 is written to `/cache/liveboot.diag.log`, or `/data/local/tmp/liveboot.diag.log`
 if the first location is unavailable. The diagnostic file is restricted to
 its root owner and does not include logcat or dmesg line contents; exception
-details and boot state may still be recorded.
+details and boot state may still be recorded. Running the in-app test does not
+overwrite the previous boot's diagnostics.
 
 Magisk and KernelSU hooks poll quickly for five seconds and then once per
 second for up to 180 seconds. When boot completes with the data partition
